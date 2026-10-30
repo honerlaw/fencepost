@@ -49,8 +49,10 @@ export async function answerStarter(page: Page, c: StarterCard, right: boolean) 
   await expect(page.getByTestId('verdict')).toBeVisible();
 }
 
+/** Advances and waits for the answered card to finish leaving. */
 export async function nextCard(page: Page) {
   await page.getByRole('button', { name: 'Next card' }).click();
+  await expect(page.getByTestId('verdict')).toHaveCount(0);
 }
 
 /** Drags upward over the card area with the mouse, like a swipe. */

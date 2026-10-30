@@ -38,6 +38,6 @@ export function reportCard(deviceId: string, card: Card): void {
   fetch('/api/flag', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ deviceId, card: plain }),
+    body: JSON.stringify({ deviceId, card: plain, reason: 'wrong' }),
   }).catch(() => {});
 }
