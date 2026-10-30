@@ -1,0 +1,18 @@
+# npm run e2e on a648e75 (a648e7516a6345e4893eb9368b480ea12fa23c2b), 2026-10-29 23:29:48 -0400, tree clean: 1 changes
+Running 13 tests using 4 workers
+
+  ✓   2 [chromium] › e2e/generated.spec.ts:75:5 › a 429 is never retried automatically (4.4s)
+  ✓   4 [chromium] › e2e/generated.spec.ts:92:7 › full stack (no stubs) › plays cards generated through the real /api/cards route (5.4s)
+  ✓   1 [chromium] › e2e/generated.spec.ts:16:5 › generated cards play, the request carries the chosen topics, and stats add up (6.0s)
+  ✓   3 [chromium] › e2e/generated.spec.ts:52:5 › a 503 shows the error card with Try again, and rematches stay playable (6.6s)
+  ✓   8 [chromium] › e2e/starter.spec.ts:71:5 › skip advances without points (993ms)
+  ✓   7 [chromium] › e2e/starter.spec.ts:52:5 › an order card is graded only when the last step is placed (2.9s)
+  ✓   9 [chromium] › e2e/starter.spec.ts:80:5 › card was wrong appears only after a wrong answer and takes it off the count (2.1s)
+  ✓  10 [chromium] › e2e/starter.spec.ts:93:5 › every button in the card, verdict, top bar and topics sheet has a name (1.1s)
+  ✓   5 [chromium] › e2e/starter.spec.ts:9:5 › every starter card can be answered right, with the verdict, points and explanation (6.2s)
+  ✓   6 [chromium] › e2e/starter.spec.ts:25:5 › every starter card can be answered wrong, with +0 and a reveal (6.0s)
+  ✓  13 [chromium] › e2e/starter.spec.ts:135:7 › with reduced motion › the feed still advances (1.1s)
+  ✓  12 [chromium] › e2e/starter.spec.ts:124:5 › swiping up advances only after the card is answered (1.7s)
+  ✓  11 [chromium] › e2e/starter.spec.ts:108:5 › progress survives a reload and returning players get a welcome card (6.1s)
+
+  13 passed (17.7s)

@@ -33,6 +33,7 @@
     - fix (all): evidence record named — scratchpad line with SHA, 13 passed/0 failed and timestamp, plus evidence/e2e-<sha>.txt
     - fix (all): "fresh expo export" reworded to `npm run e2e` (the script exports first); README settled as no change; `--no-deploy` creates no machines; NOTES notes later deploys keep the count and cross-refs the Rate-limit row; rationale moved out of criterion 12's text
 - [solo] resume implementation after replan: also fixing the provisional code-review bugs now (1 skip-all-starters stuck loading, 2 cancel on loading slot / done with nothing playable, 3 stale batch completion, 4–7 server hardening, 9–11 lows), because the replan resume changes the diff outside .minerva/work/ anyway, so both finding sets are regenerated against the final diff at the second completion check (evidence: phases.md Phase 2 step 4 "discard both … Phase 3 generates them again")
+- [solo] criterion 9 evidence (per replan): `npm run e2e` on a648e75 — 13 passed, 0 failed, 2026-10-29 23:30, tree clean → evidence/e2e-a648e75.txt. Criterion 8 unconfigured sequence re-run on a648e75 (200 / 400 / 503 / 429 retry-after 20 / flag 200 / 413 chunked) → evidence/server-unconfigured-a648e75.txt (tier: solo — mechanical evidence capture, no judgment)
 
 ## Work notes
 - **Tamagui pinned to 2.7.7, not 3.x.** npm latest was tamagui 3.1.7 (published 2026-10-28). On Expo SDK 58 web export it put atomic class names on elements but never injected their CSS — with the metro compiler on, with `disableExtraction`, and with client-only rendering alike — so cards rendered unstyled. 3.x also drops the `$` token prefix (`bg="board"`) and v6 config moves `bg` to `background`. 2.7.7 (what the user's seekless repo runs in production with Expo Router SSR) works first try with `withTamagui` + compiler on. 2.7.7 has no `@tamagui/config/v6`; using `v5` (shorthands-only, `$` tokens). Routine version choice within approach A, not a replan.
@@ -50,3 +51,16 @@
 - **iOS ligatures:** the new-architecture iOS text renderer (`RCTFontUtils.mm`) only maps the caps/number `fontVariant` values, so `no-contextual` is silently ignored and Expo Go showed `≤`/`═`. Native `codeText()` puts U+2060 (word joiner) between neighbouring symbols, which breaks the JetBrains Mono `calt` match; web keeps the CSS `font-variant-ligatures: none`. Verified in Expo Go (evidence/ios-expo-go-*.png).
 - Expo Go's first `openurl` after a terminate sometimes lands on the home screen. That is not a crash: reopening the `exp://` URL (with `__expo_disable_fab=1` so the dev gear doesn't cover the top bar) loads it.
 - Docker image builds and serves locally (health OK, page 200, cards 503 without a key). The image is about 1.26 GB because Expo/RN are runtime `dependencies`; slimming it is a follow-up, not v1.
+- 2026-10-29 23:30: the first criterion-8 curl run, started right after `npm run e2e`, got 404 on every route, including /api/health. The readiness loop used `curl -s` without `-f`, so it accepted the 404. Four later cold starts on the same dist/ all returned 200 from the first answered request, with or without NODE_ENV. Not reproduced, cause unknown. The evidence file is from the clean re-run.
+- Code-review findings fixed during the post-replan resume (a648e75). Each has a regression test, and the batch-stale test was mutation-checked against the old `signal.aborted` guard, which it fails.
+  - #1 skip-all-starters
+  - #2 cancel on loading / done with nothing playable / done while waiting
+  - #3 stale batch completion
+  - #4 rate limit check-then-take, IP first, LRU cap
+  - #5 chunked body cap
+  - #6 pre-aborted client
+  - #7 last XFF hop; dropped the no-op trust proxy
+  - #9 flush never rejects, retries
+  - #10 ndjson handler errors surface
+  - #11 dead `wasMissed` removed
+  - Not changed: #8 (`recent` titles reach the prompt by design of handoff §8.3; a modified client only affects its own batch, and output still passes normalize). The flagWrong `pushRecent` is kept because criterion 2 names it; its test now clears recent first, so it discriminates.
