@@ -2,7 +2,8 @@
 // prints every card readably, and reports drop rate and latency. Use it to choose
 // CARD_MODEL and to check prompt changes, and read the cards yourself.
 //
-//   OPENROUTER_API_KEY=... npm run cards:eval -- --model <openrouter-model-id> --batches 5 [--domain cache]
+//   npm run cards:eval -- --model <openrouter-model-id> --batches 5 [--domain cache]
+//   (the npm script gets OPENROUTER_API_KEY from Doppler: project fencepost, config prd)
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 
 import { domainName, isDomainId } from '@/cards/domains';
@@ -42,7 +43,7 @@ function printCard(card: Card, n: number) {
 
 async function main() {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) fail('OPENROUTER_API_KEY is not set. Create a key at https://openrouter.ai/keys and export it first.');
+  if (!apiKey) fail('OPENROUTER_API_KEY is not set. Add it to the Doppler project fencepost (config prd) and run this through `npm run cards:eval`.');
   const model = arg('model') ?? process.env.CARD_MODEL;
   if (!model) fail('pass --model <openrouter-model-id> (or set CARD_MODEL).');
   const batches = Number(arg('batches') ?? 3);

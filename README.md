@@ -11,21 +11,28 @@ npm install
 npx expo start          # press i for the iOS simulator (Expo Go), w for web
 ```
 
-The starter deck plays fully offline. Generated cards need the card server. In development, `npx expo start` serves the API routes too, so set the environment first:
+The starter deck plays fully offline. Generated cards need the card server, and in development `npx expo start` serves the API routes too.
+
+Secrets live in [Doppler](https://www.doppler.com/) (project `fencepost`, config `prd`), never in `.env` files or shell history. Install the CLI, run `doppler login` once, then use the npm scripts that inject them:
 
 ```bash
-export OPENROUTER_API_KEY=...   # never commit this; it is read only on the server
-export CARD_MODEL=...           # an OpenRouter model id
-npx expo start
+npm run dev     # expo start with the Doppler secrets; use this for generated cards
+npm run serve   # node server.js with the Doppler secrets (after an export)
 ```
 
-Without those variables, `/api/cards` answers 503. The app then shows an error card, and the starter deck and rematches stay playable.
+`/api/cards` also needs `CARD_MODEL` (an OpenRouter model id). Set it in Doppler once you've picked one:
+
+```bash
+doppler secrets set CARD_MODEL=<model-id> --project fencepost --config prd
+```
+
+Without `OPENROUTER_API_KEY` and `CARD_MODEL`, `/api/cards` answers 503. The app then shows an error card, and the starter deck and rematches stay playable.
 
 ## Run the production server locally
 
 ```bash
 npx expo export --platform web            # builds dist/client and dist/server (with the API routes)
-PORT=8080 node server.js                  # Express + expo-server; open http://localhost:8080
+PORT=8080 npm run serve                   # Express + expo-server; open http://localhost:8080
 curl localhost:8080/api/health            # {"ok":true}
 ```
 
@@ -41,7 +48,7 @@ Docker (the same image Fly would run):
 
 ```bash
 docker build -t fencepost .
-docker run --rm -p 8080:8080 -e OPENROUTER_API_KEY=... -e CARD_MODEL=... fencepost
+doppler run --project fencepost --config prd -- docker run --rm -p 8080:8080 -e OPENROUTER_API_KEY -e CARD_MODEL fencepost
 ```
 
 ## Checks
@@ -51,7 +58,7 @@ npx tsc --noEmit
 npx expo lint
 npm test                                  # Vitest: game rules, normalize, store, server handlers (mock model)
 npm run e2e                               # builds the web export, then Playwright against server.js
-npm run cards:eval -- --model <id> --batches 5   # real model; needs OPENROUTER_API_KEY
+npm run cards:eval -- --model <id> --batches 5   # real model, spends OpenRouter credit; key comes from Doppler
 ```
 
 ## Layout

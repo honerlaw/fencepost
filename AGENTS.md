@@ -34,6 +34,10 @@ Run lint and typecheck before declaring any task done.
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
 Docs: https://docs.expo.dev/eas/index.md
 
+## Secrets
+
+All secrets live in Doppler (project `fencepost`, config `prd`). Never put a secret in a `.env` file, in source, in a shell `export`, or in a command line. Run anything that needs one through `doppler run --project fencepost --config prd -- <command>`, or the npm scripts that already do (`npm run dev`, `npm run serve`, `npm run cards:eval`). Read values only by injection: list with `doppler secrets --only-names`, and never print a value. Never give a secret an `EXPO_PUBLIC_` name, because those are inlined into the client bundle.
+
 ## Rules
 
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
