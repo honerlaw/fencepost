@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createLiveCardSource } from './card-source';
 import { handlersFromEnv } from './from-env';
-import { BATCH_TIMEOUT_MS, createHandlers, PING_MS } from './handlers';
+import { BATCH_TIMEOUT_MS, clientIp, createHandlers, PING_MS } from './handlers';
 import { createRateLimiter } from './rate-limit';
 
 const DEVICE = 'device-1234';
@@ -237,6 +237,23 @@ describe('/api/cards streaming', () => {
     expect(await next()).toBeNull();
     expect(m.model.doStreamCalls[0].abortSignal?.aborted).toBe(true);
     await vi.waitFor(() => expect(logs[0]).toMatchObject({ outcome: 'client_abort' }));
+  });
+
+  it('cancels the model call when the client left before the stream started', async () => {
+    const m = handModel();
+    const { handlers, logs } = setup({ primary: m.model });
+    const client = new AbortController();
+    client.abort();
+    await handlers.cards(cardsRequest(undefined, client.signal));
+    await vi.waitFor(() => expect(logs[0]).toMatchObject({ outcome: 'client_abort' }));
+    expect(m.model.doStreamCalls.every((c) => c.abortSignal?.aborted)).toBe(true);
+  });
+
+  it('uses Fly-Client-IP, else the last X-Forwarded-For hop', () => {
+    const req = (headers: Record<string, string>) => new Request('http://x/', { headers });
+    expect(clientIp(req({ 'fly-client-ip': '9.9.9.9', 'x-forwarded-for': '1.1.1.1' }))).toBe('9.9.9.9');
+    expect(clientIp(req({ 'x-forwarded-for': '6.6.6.6, 10.0.0.1, 203.0.113.7' }))).toBe('203.0.113.7');
+    expect(clientIp(req({}))).toBe('unknown');
   });
 
   it('passes the output-token cap to the model', async () => {

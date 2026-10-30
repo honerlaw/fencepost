@@ -34,6 +34,14 @@ test('every starter card can be answered wrong, with +0 and a reveal', async ({ 
     if (c.type === 'flaw') {
       await expect(card(page).getByTestId('marker-circle')).toHaveCount(1);
       const bad = c.code!.findIndex((l) => l.trim() === c.bad_line);
+      // The loop is drawn around the buggy line: its centre sits inside that line's text box.
+      const loop = (await card(page).getByTestId('marker-circle').boundingBox())!;
+      const line = (await card(page).getByText(c.code![bad].trim(), { exact: true }).boundingBox())!;
+      const [cx, cy] = [loop.x + loop.width / 2, loop.y + loop.height / 2];
+      expect(cx).toBeGreaterThanOrEqual(line.x);
+      expect(cx).toBeLessThanOrEqual(line.x + line.width);
+      expect(cy).toBeGreaterThanOrEqual(line.y);
+      expect(cy).toBeLessThanOrEqual(line.y + line.height);
       const tapped = card(page).getByText(c.code![bad === 0 ? 1 : 0].trim(), { exact: true });
       await expect(tapped).toHaveCSS('text-decoration-line', 'line-through');
     }

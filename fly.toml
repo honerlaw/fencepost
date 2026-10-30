@@ -11,7 +11,8 @@ primary_region = "iad"
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  # One machine: the rate limiter is in memory (move it to Redis before scaling out).
+  # A floor, not a cap: the in-memory rate limiter needs exactly one machine, which
+  # `fly deploy --ha=false` and `fly scale count 1` enforce (see NOTES.md, step 3).
   min_machines_running = 1
 
   [[http_service.checks]]

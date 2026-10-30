@@ -1,7 +1,7 @@
 import type { StateStorage } from 'zustand/middleware';
 
 export interface DebouncedStorage extends StateStorage {
-  /** Writes any pending value now (call when the app goes to the background). */
+  /** Writes any pending value now (call when the app goes to the background). Never rejects. */
   flush: () => Promise<void>;
 }
 
@@ -10,13 +10,18 @@ export function debounceStorage(storage: StateStorage, delayMs: number): Debounc
   let pending: { name: string; value: string } | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
+  /** Never rejects: a failed write is kept (unless a newer one arrived) and retried on the next flush. */
   const flush = async () => {
     if (timer) clearTimeout(timer);
     timer = null;
     if (!pending) return;
-    const { name, value } = pending;
+    const write = pending;
     pending = null;
-    await storage.setItem(name, value);
+    try {
+      await storage.setItem(write.name, write.value);
+    } catch {
+      pending ??= write;
+    }
   };
 
   return {

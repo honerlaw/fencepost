@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createRateLimiter, takeAll } from './rate-limit';
+import { createRateLimiter, MAX_KEYS, takeAll } from './rate-limit';
 
 describe('rate limiter', () => {
   it('allows a burst, then one token per refill interval', () => {
@@ -33,5 +33,32 @@ describe('rate limiter', () => {
     expect(takeAll([[device, 'b'], [ip, '1.2.3.4']]).ok).toBe(true);
     // A third device on the same IP is refused by the IP bucket.
     expect(takeAll([[device, 'c'], [ip, '1.2.3.4']]).ok).toBe(false);
+  });
+
+  it('charges nothing when any limiter refuses', () => {
+    const ip = createRateLimiter({ burst: 1, refillMs: 10_000 }, () => 0);
+    const device = createRateLimiter({ burst: 1, refillMs: 20_000 }, () => 0);
+    expect(takeAll([[ip, '1.1.1.1'], [device, 'a']]).ok).toBe(true);
+    // The IP refuses, so device b keeps its token and is not even stored.
+    expect(takeAll([[ip, '1.1.1.1'], [device, 'b']]).ok).toBe(false);
+    expect(device.size()).toBe(1);
+    expect(takeAll([[ip, '2.2.2.2'], [device, 'b']]).ok).toBe(true);
+    // And when the device refuses, the IP keeps its token.
+    expect(takeAll([[ip, '3.3.3.3'], [device, 'a']]).ok).toBe(false);
+    expect(ip.check('3.3.3.3').ok).toBe(true);
+  });
+
+  it('keeps at most MAX_KEYS keys, dropping the least recently used', () => {
+    const limiter = createRateLimiter({ burst: 1, refillMs: 1000 }, () => 0);
+    limiter.take('oldest');
+    limiter.take('kept');
+    for (let i = 0; i < MAX_KEYS - 2; i++) limiter.take(`k${i}`);
+    limiter.take('kept');
+    expect(limiter.size()).toBe(MAX_KEYS);
+    limiter.take('new');
+    expect(limiter.size()).toBe(MAX_KEYS);
+    // 'oldest' was evicted (fresh bucket again); 'kept' was used recently, so it is still spent.
+    expect(limiter.check('oldest').ok).toBe(true);
+    expect(limiter.check('kept').ok).toBe(false);
   });
 });

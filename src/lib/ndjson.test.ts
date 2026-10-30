@@ -25,6 +25,13 @@ describe('readNdjson', () => {
     expect(seen).toEqual([{ event: 'ping' }]);
   });
 
+  it('passes errors thrown by the handler through instead of treating them as bad lines', async () => {
+    const fail = () => {
+      throw new Error('handler bug');
+    };
+    await expect(readNdjson(streamOf(['{"event":"ping"}\n']), fail)).rejects.toThrow('handler bug');
+  });
+
   it('decodes multi-byte characters split across chunks', async () => {
     const bytes = new TextEncoder().encode('{"t":"≤"}\n');
     const seen: unknown[] = [];

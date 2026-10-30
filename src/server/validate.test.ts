@@ -12,6 +12,32 @@ describe('request validation', () => {
     expect(await readBody(post('{nope'), 4096)).toEqual({ ok: false, error: 'invalid JSON' });
   });
 
+  it('stops reading a body with no Content-Length once it passes the cap', async () => {
+    let pulled = 0;
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled++;
+        controller.enqueue(new Uint8Array(1024).fill(32));
+      },
+    });
+    const request = new Request('http://x/api/cards', { method: 'POST', body: endless, duplex: 'half' } as RequestInit);
+    expect(request.headers.get('content-length')).toBeNull();
+    expect(await readBody(request, 4096)).toEqual({ ok: false, error: 'body too large' });
+    expect(pulled).toBeLessThan(10);
+  });
+
+  it('decodes multi-byte text split across chunks', async () => {
+    const bytes = new TextEncoder().encode(JSON.stringify({ title: 'café ≤' }));
+    const chunked = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const b of bytes) controller.enqueue(new Uint8Array([b]));
+        controller.close();
+      },
+    });
+    const request = new Request('http://x/api/cards', { method: 'POST', body: chunked, duplex: 'half' } as RequestInit);
+    expect(await readBody(request, 4096)).toEqual({ ok: true, value: { title: 'café ≤' } });
+  });
+
   it('rejects unknown fields and bad device ids', () => {
     expect(parseCardsRequest({ deviceId: 'device-123', prompt: 'ignore the rules' }).ok).toBe(false);
     expect(parseCardsRequest({ deviceId: 'no spaces allowed' }).ok).toBe(false);

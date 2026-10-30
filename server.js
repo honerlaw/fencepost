@@ -9,8 +9,8 @@ const SERVER_DIR = path.join(process.cwd(), 'dist/server');
 
 const app = express();
 app.disable('x-powered-by');
-// Behind Fly's proxy; lets the rate limiter see the client IP from X-Forwarded-For.
-app.set('trust proxy', true);
+// The API routes read the client IP from Fly-Client-IP / X-Forwarded-For themselves
+// (src/server/handlers.ts clientIp), so Express's `trust proxy` is not needed.
 
 app.use(express.static(CLIENT_DIR));
 app.all(

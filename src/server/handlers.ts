@@ -33,9 +33,12 @@ function limited(result: LimitResult & { ok: false }) {
   return json({ error: 'rate_limited' }, 429, { 'retry-after': String(result.retryAfterSec) });
 }
 
-/** Fly puts the caller's address in Fly-Client-IP; otherwise the first X-Forwarded-For hop. */
+/**
+ * Fly puts the caller's address in Fly-Client-IP. Elsewhere, the last X-Forwarded-For hop is
+ * the one the nearest proxy appended; earlier hops are whatever the client sent.
+ */
 export function clientIp(request: Request): string {
-  return request.headers.get('fly-client-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  return request.headers.get('fly-client-ip') ?? request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() ?? 'unknown';
 }
 
 export function createHandlers(deps: HandlerDeps) {
@@ -60,8 +63,8 @@ export function createHandlers(deps: HandlerDeps) {
     const params = parsed.value;
 
     const limit = takeAll([
-      [deps.limits.cardsDevice, params.deviceId],
       [deps.limits.cardsIp, clientIp(request)],
+      [deps.limits.cardsDevice, params.deviceId],
     ]);
     if (!limit.ok) return limited(limit);
 
@@ -77,7 +80,9 @@ export function createHandlers(deps: HandlerDeps) {
 
     const abort = new AbortController();
     const onClientAbort = () => abort.abort(new Error('client closed'));
-    request.signal.addEventListener('abort', onClientAbort);
+    // The client may already have gone during the awaits above; a listener added now would never fire.
+    if (request.signal.aborted) onClientAbort();
+    else request.signal.addEventListener('abort', onClientAbort);
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream<Uint8Array>({
@@ -172,8 +177,8 @@ export function createHandlers(deps: HandlerDeps) {
     const parsed = parseFlagRequest(body.value);
     if (!parsed.ok) return json({ error: parsed.error }, 400);
     const limit = takeAll([
-      [deps.limits.flagDevice, parsed.value.deviceId],
       [deps.limits.flagIp, clientIp(request)],
+      [deps.limits.flagDevice, parsed.value.deviceId],
     ]);
     if (!limit.ok) return limited(limit);
     deps.log({ event: 'flag', device: await hashDevice(parsed.value.deviceId), reason: parsed.value.reason, card: parsed.value.card });

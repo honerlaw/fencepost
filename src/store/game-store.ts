@@ -88,18 +88,24 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
           const game = get().game;
           if (!game) return;
           commit(beginFetch(game, decision, d()));
-          controller = new AbortController();
-          const { signal } = controller;
+          const own = new AbortController();
+          controller = own;
+          const { signal } = own;
+          // A batch that ended (or was cancelled) must not touch the state of the one after it.
+          const stale = () => controller !== own;
           const { progress } = game;
           const req: BatchRequest = { deviceId: progress.deviceId, domains: progress.domains, recent: progress.recent.slice(-RECENT_SENT) };
           deps
             .fetchBatch(req, (ev) => {
-              if (signal.aborted) return;
+              if (stale()) return;
               const current = get().game;
-              if (current) commit(applyBatchEvent(current, ev, d()));
+              if (!current) return;
+              commit(applyBatchEvent(current, ev, d()));
+              // The player may have played through the batch already; fetch the next one now.
+              if (ev.event === 'done') maybeFetch();
             }, signal)
             .then((outcome) => {
-              if (signal.aborted) return;
+              if (stale()) return;
               const current = get().game;
               if (!current) return;
               if (!outcome.ok) commit(batchFailed(current, outcome.code, d()));
@@ -109,7 +115,7 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
               }
             })
             .catch(() => {
-              if (signal.aborted) return;
+              if (stale()) return;
               const current = get().game;
               if (current) commit(batchFailed(current, 'network', d()));
             });
@@ -170,7 +176,7 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
             if (!controller || !game?.fetch.inFlight) return;
             controller.abort();
             controller = null;
-            commit(batchCancelled(game));
+            commit(batchCancelled(game, d()));
           },
         };
       },

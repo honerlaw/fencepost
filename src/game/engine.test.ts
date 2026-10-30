@@ -5,6 +5,7 @@ import {
   advance,
   answer,
   applyBatchEvent,
+  batchCancelled,
   batchFailed,
   beginFetch,
   dealIn,
@@ -180,6 +181,18 @@ describe('rematches', () => {
     }
     expect(loadStarterDeck(seededRng(1)).filter((c) => c.double).map((c) => c.id)).toEqual(['starter-3']);
   });
+
+  it('never rolls 2x on the starter path, even with an RNG that always rolls', () => {
+    const always = { now: T0, rng: () => 0 };
+    let s = startSession(newProgress('d'), loadStarterDeck(seededRng(1)), always);
+    const served: PlayedCard[] = [];
+    while (s.current.kind === 'card') {
+      served.push(current(s));
+      s = skip(s, always);
+    }
+    expect(served.map((c) => c.id)).toEqual(['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5', 'starter-6']);
+    expect(served.filter((c) => c.double).map((c) => c.id)).toEqual(['starter-3']);
+  });
 });
 
 describe('skip and card was wrong', () => {
@@ -202,11 +215,12 @@ describe('skip and card was wrong', () => {
     s = wrong(advance(s, deps()));
     const card = current(s);
     expect(s.progress.missed.map((c) => c.id)).toContain(card.id);
-    s = flagWrong(s);
+    // Clear recent so the assertion below sees flagWrong's own write, not answer's.
+    s = flagWrong({ ...s, progress: { ...s.progress, recent: [] } });
     expect(s.combo).toBe(2);
     expect(s.progress.answered).toBe(2);
     expect(s.progress.missed.map((c) => c.id)).not.toContain(card.id);
-    expect(s.progress.recent).toContain(card.title);
+    expect(s.progress.recent).toEqual([card.title]);
     expect(s.current.kind === 'card' && s.current.result?.flagged).toBe(true);
   });
 
@@ -221,6 +235,15 @@ describe('batches', () => {
     const s = startSession(newProgress('d'), loadStarterDeck(seededRng(1)), deps());
     expect(nextFetch(s)).toBe('wait');
     expect(nextFetch(answer(s, 0, deps()))).toBe('fetch');
+  });
+
+  it('starts the session on a skip, so skipping the whole starter deck still fetches', () => {
+    let s = startSession(newProgress('d'), loadStarterDeck(seededRng(1)), deps());
+    expect(nextFetch(skip(s, deps()))).toBe('fetch');
+    while (s.current.kind === 'card') s = skip(s, deps());
+    expect(s.current.kind).toBe('loading');
+    expect(s.progress.starterDone).toBe(true);
+    expect(nextFetch(s)).toBe('fetch');
   });
 
   it('swaps the loading card for the first card as it streams in', () => {
@@ -255,6 +278,35 @@ describe('batches', () => {
     let s = beginFetch(playing([]), 'fetch', deps());
     s = applyBatchEvent(s, { event: 'done', sent: 0 }, deps());
     expect(s.current.kind).toBe('error');
+  });
+
+  it('fails a batch whose cards were all unplayable, even when the server counted them sent', () => {
+    let s = beginFetch(playing([]), 'fetch', deps());
+    s = applyBatchEvent(s, { event: 'card', card: { id: 'x', type: 'flaw' } }, deps());
+    s = applyBatchEvent(s, { event: 'done', sent: 1 }, deps());
+    expect(s.current).toEqual({ kind: 'error', code: 'upstream_error' });
+  });
+
+  it('counts playable cards per batch', () => {
+    let s = beginFetch(playing([]), 'fetch', deps());
+    s = applyBatchEvent(s, { event: 'card', card: modelCard() }, deps());
+    expect(s.fetch.received).toBe(1);
+    s = applyBatchEvent(s, { event: 'done', sent: 1 }, deps());
+    expect(beginFetch(s, 'fetch', deps()).fetch.received).toBe(0);
+  });
+
+  it('a cancelled batch turns the loading card into the error card, and keeps a card in play', () => {
+    let s = beginFetch(playing([]), 'fetch', deps());
+    expect(s.current.kind).toBe('loading');
+    s = batchCancelled(s, deps());
+    expect(s.current).toEqual({ kind: 'error', code: 'network' });
+    expect(s.fetch.inFlight).toBe(false);
+
+    let t = beginFetch(playing([modelCard()]), 'fetch', deps());
+    const before = t.current;
+    t = batchCancelled(t, deps());
+    expect(t.current).toBe(before);
+    expect(t.fetch).toMatchObject({ inFlight: false, error: null });
   });
 
   it('keeps rematches playable when the server fails', () => {

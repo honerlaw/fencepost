@@ -12,9 +12,11 @@ export interface FetchState {
   error: { code: FetchErrorCode; atAnswer: number } | null;
   /** One automatic retry per failure streak; reset when a batch succeeds. */
   autoRetryUsed: boolean;
+  /** Playable cards the current batch has delivered so far. */
+  received: number;
 }
 
-export const initialFetchState: FetchState = { inFlight: false, domain: null, error: null, autoRetryUsed: false };
+export const initialFetchState: FetchState = { inFlight: false, domain: null, error: null, autoRetryUsed: false, received: 0 };
 
 export type FetchDecision = 'fetch' | 'auto-retry' | 'wait';
 
@@ -33,6 +35,7 @@ export function fetchStarted(fetch: FetchState, decision: FetchDecision | 'manua
     // A manual retry clears the error; an auto retry keeps the streak's budget spent.
     error: decision === 'manual' ? null : fetch.error,
     autoRetryUsed: decision === 'auto-retry' ? true : decision === 'manual' ? false : fetch.autoRetryUsed,
+    received: 0,
   };
 }
 

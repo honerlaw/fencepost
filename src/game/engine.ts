@@ -17,7 +17,7 @@ export interface AnswerResult {
   toasts: string[];
   haptic: HapticPattern;
   /** Undo data for "card was wrong". */
-  undo: { combo: number; wasMissed: boolean };
+  undo: { combo: number };
   flagged: boolean;
 }
 
@@ -38,7 +38,7 @@ export interface GameState {
   sinceRematch: number;
   lastAnsweredId: string | null;
   answers: number;
-  /** True after the first answer or "Deal me in"; nothing is fetched before. */
+  /** True after the first answer, skip or "Deal me in"; nothing is fetched before. */
   sessionStarted: boolean;
   fetch: FetchState;
 }
@@ -152,7 +152,7 @@ export function answer(state: GameState, picked: number | number[], deps: Deps):
     verdict: verdictWord(correct, card.boss, deps.rng),
     toasts: celebrationsFor({ xpBefore: state.progress.xp, xpAfter: progress.xp, combo, streak }),
     haptic: hapticFor(correct),
-    undo: { combo: state.combo, wasMissed },
+    undo: { combo: state.combo },
     flagged: false,
   };
 
@@ -196,7 +196,7 @@ export function skip(state: GameState, deps: Deps): GameState {
     recent: pushRecent(state.progress.recent, card.title),
     starterDone: state.progress.starterDone || (!!card.starter && state.starter.length === 0),
   };
-  return advance({ ...state, progress, lastAnsweredId: card.id }, deps);
+  return advance({ ...state, progress, lastAnsweredId: card.id, sessionStarted: true }, deps);
 }
 
 function dueRematch(state: GameState): Card | undefined {
@@ -266,13 +266,13 @@ export function applyBatchEvent(state: GameState, ev: BatchEvent, deps: Deps): G
     case 'card': {
       const card = normalizeGenerated(ev.card);
       if (!card) return state;
-      const next = { ...state, queue: [...state.queue, card] };
+      const next = { ...state, queue: [...state.queue, card], fetch: { ...state.fetch, received: state.fetch.received + 1 } };
       // The loading card is swapped for the first card the moment it arrives.
       return isWaiting(next) ? advance(next, deps) : next;
     }
     case 'done': {
-      // A batch that produced nothing counts as a failure, so it can't refetch in a loop.
-      if (ev.sent === 0) return batchFailed(state, 'upstream_error', deps);
+      // A batch that produced nothing playable counts as a failure, so it can't refetch in a loop.
+      if (ev.sent === 0 || state.fetch.received === 0) return batchFailed(state, 'upstream_error', deps);
       const next = { ...state, fetch: fetchSucceeded(state.fetch) };
       return isWaiting(next) ? advance(next, deps) : next;
     }
@@ -288,8 +288,12 @@ export function batchFailed(state: GameState, code: FetchErrorCode, deps: Deps):
   return isWaiting(next) ? advance(next, deps) : next;
 }
 
-/** Called when a batch request is cancelled (backgrounded); cards already queued stay. */
-export function batchCancelled(state: GameState): GameState {
+/**
+ * Called when a batch request is cancelled (backgrounded); cards already queued stay.
+ * A loading card would wait forever, so it becomes the error card with Try again.
+ */
+export function batchCancelled(state: GameState, deps: Deps): GameState {
+  if (isWaiting(state)) return batchFailed(state, 'network', deps);
   return { ...state, fetch: { ...state.fetch, inFlight: false } };
 }
 

@@ -6,11 +6,14 @@ export async function readNdjson(body: ReadableStream<Uint8Array>, onValue: (val
   const emit = (line: string) => {
     const trimmed = line.trim();
     if (!trimmed) return;
+    let value: unknown;
     try {
-      onValue(JSON.parse(trimmed));
+      value = JSON.parse(trimmed);
     } catch {
       // A malformed line is dropped; the rest of the batch still plays.
+      return;
     }
+    onValue(value);
   };
   for (;;) {
     const { done, value } = await reader.read();

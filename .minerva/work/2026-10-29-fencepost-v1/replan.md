@@ -31,3 +31,30 @@ NOTES.md user-run item (dev build):
 - cloud alternative: `eas.json` does not exist yet. Run `bunx`/`npx eas-cli@latest build:configure` (or add a `development` profile with `"ios": { "simulator": true }`), add `expo-dev-client` if the profile sets `"developmentClient": true`, log in to an Expo account, then `npx eas-cli@latest build --profile development --platform ios`.
 
 Standing trigger: the config plugins already present (`expo-router`, `expo-splash-screen`, `expo-sqlite`) are covered by the Not-done dev-build item and do not trip it. A later change that adds a native module Expo Go does not bundle, or a config plugin whose effect only a native build exercises, re-opens criterion 10: it then needs a dev build or an explicit re-waiver in a new replan entry. The trigger applies to later work units too; promote records it as a knowledge entry alongside the Tamagui 2.7.7 pin.
+
+## 2026-10-29 — Completion verification: "single machine" made true for Fly, and e2e evidence must come from the final tree
+
+**Original plan**: Criterion 12 required `fly.toml` to describe a "single machine" with a `/api/health` check. `fly.toml` sets `min_machines_running = 1` and has the comment "One machine". NOTES.md user-run step 3 said `fly launch --no-deploy` → `fly secrets set …` → `fly deploy` and claimed "Keep one machine (`fly.toml` already does)". Criterion 9 required `npm run e2e` to pass. It last passed at 23:15:02, against a `dist/client` exported at 23:14.
+
+**What changed**: The completion Verifier returned `revise` on two criteria.
+
+- **Criterion 12 is not met as written.** `min_machines_running` is a floor, not a cap. Fly's docs (docs.fly.io/apps/app-availability) say `fly launch` and `fly deploy` "creates and starts two Machines for process groups with services". `fly launch --no-deploy` creates no machines, so that two-machine default takes effect at the first `fly deploy`. The rate limiters are in memory and per machine (NOTES.md, "Rate-limit state"), so two machines would double every limit. The docs' fixes are `--ha=false` ("`fly deploy --ha=false` on first deploy or after scaling to zero") and `fly scale count 1` ("Scale down an app to one Machine"). No `fly.toml` key caps the machine count. This matches handoff §15 ("Keep one machine until rate limiting moves to Redis"), which treats one machine as an operations step, not a config setting.
+- **Criterion 9 has no evidence for HEAD.** The last passing e2e run predates the final commit 31fbe1d, which changed `src/store/lifecycle.ts` and `src/components/feed/use-app-lifecycle.ts`. Those files drive the page-hide save that the reload scenario exercises.
+
+**New plan**:
+
+New criterion 12 (verbatim):
+> 12. `Dockerfile`, `server.js`, `fly.toml` (`min_machines_running = 1`, `/api/health` check) exist, and NOTES.md's Fly steps keep the app on exactly one machine: `fly deploy --ha=false` on the first deploy, plus `fly scale count 1` if two machines already exist. `app.json` sets the `expo-router` plugin `origin` and `web.output: "server"`; `express` and `expo-server` are in `dependencies`.
+
+Edits:
+
+- NOTES.md step 3 uses `fly deploy --ha=false` and gives `fly scale count 1` as the recovery step. It notes that later `fly deploy` runs keep the current machine count, and refers to the "Rate-limit state" row instead of restating it. "(`fly.toml` already does)" is dropped.
+- The `fly.toml` comment is corrected: the setting is a floor, and NOTES.md holds the deploy flags.
+- README: no change. README:40 ("the same image Fly would run") and README:63 ("Deploying is a manual step (see NOTES.md)") make no machine-count claim and already defer to NOTES.md.
+- All of these are documentation only. No Fly command is run (standing user directive: local development only).
+
+Criterion 9 is clarified, not weakened, and its text is unchanged. The completion evidence is a passing `npm run e2e` (the script runs `expo export --platform web` first, and the Playwright webServers use `reuseExistingServer: false`) on the commit where the app, server, test and build-config inputs are final. Changes that touch only docs or comments (NOTES.md, README.md, `fly.toml` comments, `.minerva/`) do not require a re-run. Any later code change, including Phase 3 FIX items, re-runs it before ship.
+
+The evidence record is a line in `scratchpad.md` with the commit SHA tested, the result (13 passed, 0 failed) and a timestamp, plus the Playwright list output saved as `evidence/e2e-<sha>.txt`.
+
+The Verifier's optional test tightenings are not criterion changes. They go to the review triage with the code-review findings: a starter-path no-2x test, a discriminating flagWrong-recent assertion, and a marker-circle-on-the-buggy-line assertion.
