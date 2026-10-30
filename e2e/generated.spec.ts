@@ -50,6 +50,8 @@ test('generated cards play, the request carries the chosen topics, and stats add
 });
 
 test('a 503 shows the error card with Try again, and rematches stay playable', async ({ page }) => {
+  // Batches start at least 20 s apart (MIN_FETCH_GAP_MS), so the retries below wait out that gap.
+  test.setTimeout(90_000);
   const requests = await stubApi(page, { status: 503, body: '{"error":"unavailable"}', headers: { 'content-type': 'application/json' } });
   await open(page);
   await answerStarter(page, STARTER[0], false);
@@ -65,10 +67,14 @@ test('a 503 shows the error card with Try again, and rematches stay playable', a
     await answerStarter(page, c, true);
     await nextCard(page);
   }
-  await expect(page.getByTestId('error')).toBeVisible();
+  // The automatic retry (3 answers after the failure) waits out the gap, then fails too.
+  await expect(page.getByTestId('error')).toBeVisible({ timeout: 25_000 });
   const before = requests.length;
   await page.getByRole('button', { name: 'Try again' }).click();
-  await expect.poll(() => requests.length).toBe(before + 1);
+  // Try again shows the loading card at once; the request goes out when the gap has passed.
+  await expect(page.getByTestId('loading')).toBeVisible();
+  expect(requests.length).toBe(before);
+  await expect.poll(() => requests.length, { timeout: 25_000 }).toBe(before + 1);
   await expect(page.getByTestId('error')).toBeVisible();
 });
 
