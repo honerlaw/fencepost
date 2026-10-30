@@ -1,0 +1,22 @@
+# Fly.io config (handoff §15). Deploying is a user-run step; see NOTES.md.
+app = "fencepost"
+primary_region = "iad"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # One machine: the rate limiter is in memory (move it to Redis before scaling out).
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "5s"

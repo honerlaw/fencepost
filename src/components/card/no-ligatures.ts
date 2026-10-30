@@ -1,4 +1,14 @@
-import type { TextStyle } from 'react-native';
+/**
+ * JetBrains Mono draws `<=` as `≤` and `==` as one long bar (contextual alternates), but
+ * puzzles need the literal characters. The new-architecture iOS text renderer ignores
+ * the ligature fontVariant values, so on native an invisible word joiner (U+2060) goes
+ * between neighbouring symbols, which stops the font from merging them. Accessibility
+ * labels use the original text.
+ */
+const SYMBOL_PAIR = /([<>=!&|+\-*/:.~^%#?@$\\])(?=[<>=!&|+\-*/:.~^%#?@$\\])/g;
 
-/** JetBrains Mono turns `<=` into `≤` via contextual alternates; puzzles need the literal characters. */
-export const noLigatures: { fontVariant: TextStyle['fontVariant'] } = { fontVariant: ['no-contextual', 'no-common-ligatures'] };
+export function codeText(line: string): string {
+  return line.replace(SYMBOL_PAIR, '$1⁠');
+}
+
+export const noLigatures = {};

@@ -4,7 +4,7 @@ import { Text, XStack, YStack } from 'tamagui';
 
 import { Tap } from '@/components/ui/tap';
 import { MarkerCircle, type Box } from './marker-circle';
-import { noLigatures } from './no-ligatures';
+import { codeText, noLigatures } from './no-ligatures';
 
 export interface CodeReveal {
   /** Index of the wrong line (flaw cards). */
@@ -49,7 +49,7 @@ function CodeLine({ index, line, state, onPick }: { index: number; line: string;
           whiteSpace="pre"
           onLayout={(e) => setBox(e.nativeEvent.layout)}
         >
-          {body || ' '}
+          {codeText(body) || ' '}
         </Text>
         {(state === 'flaw' || state === 'right') && box ? <MarkerCircle box={box} /> : null}
       </YStack>
