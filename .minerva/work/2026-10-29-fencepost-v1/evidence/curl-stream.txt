@@ -1,0 +1,8 @@
+22:50:44.132  {"event":"start","domain":"rides","count":5}
+22:50:54.132  {"event":"ping"}
+22:50:56.373  {"event":"card","card":{"id":"1ef72f68-f1a0-4ba2-a74e-10cda7d44f30","domain":"rides","boss":false,"title":"Late checkout window","prompt":"A
+22:50:57.728  {"event":"card","card":{"id":"601a6752-3311-48af-8530-62299292c749","domain":"rides","boss":false,"title":"Double tap on pay","prompt":"A cu
+22:50:59.327  {"event":"card","card":{"id":"7fd4f24b-8d04-459b-806d-966bd882a84b","domain":"rides","boss":false,"title":"Seats left","prompt":"seats_left 
+22:51:00.443  {"event":"card","card":{"id":"25916c55-fc3f-4b3a-8255-325a72b95906","domain":"rides","boss":false,"title":"Retry with backoff","prompt":"How
+22:51:01.618  {"event":"card","card":{"id":"d3bf7d6f-98dd-4f85-8f9c-9cb290d0b3d2","domain":"rides","boss":false,"title":"Cancelling a ride","prompt":"Put 
+22:51:01.681  {"event":"done","sent":5}

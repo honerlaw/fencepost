@@ -1,56 +1,70 @@
-# Welcome to your Expo app 👋
+# Fencepost
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A doomscroll feed of tap-to-answer logic puzzles for senior engineers, on a whiteboard (light) or chalkboard (dark). Five card types: spot the flaw, break it, trace it, pick the design, and order the steps. It ships with a 6-card starter deck. After that, a small stateless server writes cards live with an AI model and streams them to the app as NDJSON.
 
-## Get started
+> **Not production-ready yet.** The card server's plumbing, validation, rate limits and streaming are tested, but whether generated puzzles are *correct* depends on the model. That is unverified until someone runs `npm run cards:eval` against real models, reads the cards, and picks `CARD_MODEL`. See [NOTES.md](NOTES.md).
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Run the app
 
 ```bash
-npm run reset-project
+npm install
+npx expo start          # press i for the iOS simulator (Expo Go), w for web
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+The starter deck plays fully offline. Generated cards need the card server, and in development `npx expo start` serves the API routes too.
 
-### Other setup steps
+Secrets live in [Doppler](https://www.doppler.com/) (project `fencepost`, config `prd`), never in `.env` files or shell history. Install the CLI, run `doppler login` once, then use the npm scripts that inject them:
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```bash
+npm run dev     # expo start with the Doppler secrets; use this for generated cards
+npm run serve   # node server.js with the Doppler secrets (after an export)
+```
 
-## Learn more
+`/api/cards` also needs `CARD_MODEL` (an OpenRouter model id). Set it in Doppler once you've picked one:
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+doppler secrets set CARD_MODEL=<model-id> --project fencepost --config prd
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Without `OPENROUTER_API_KEY` and `CARD_MODEL`, `/api/cards` answers 503. The app then shows an error card, and the starter deck and rematches stay playable.
 
-## Join the community
+## Run the production server locally
 
-Join our community of developers creating universal apps.
+```bash
+npx expo export --platform web            # builds dist/client and dist/server (with the API routes)
+PORT=8080 npm run serve                   # Express + expo-server; open http://localhost:8080
+curl localhost:8080/api/health            # {"ok":true}
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+To see real streaming without an OpenRouter key, run the fake OpenRouter in `scripts/`. The inline values below are throwaway stubs, not secrets:
+
+```bash
+npm run stub:openrouter &                 # listens on 8790, streams scripts/stub-cards.json slowly
+OPENROUTER_BASE_URL=http://127.0.0.1:8790/api/v1 OPENROUTER_API_KEY=stub CARD_MODEL=stub/model PORT=8080 node server.js
+curl -N -X POST localhost:8080/api/cards -H 'content-type: application/json' -d '{"deviceId":"local-device-1"}'
+```
+
+Docker (the same image Fly would run):
+
+```bash
+docker build -t fencepost .
+doppler run --project fencepost --config prd -- docker run --rm -p 8080:8080 -e OPENROUTER_API_KEY -e CARD_MODEL fencepost
+```
+
+## Checks
+
+```bash
+npx tsc --noEmit
+npx expo lint
+npm test                                  # Vitest: game rules, normalize, store, server handlers (mock model)
+npm run e2e                               # builds the web export, then Playwright against server.js
+npm run cards:eval -- --model <id> --batches 5   # real model, spends OpenRouter credit; key comes from Doppler
+```
+
+## Layout
+
+- `src/app/` holds the routes: the feed (`index.tsx`), the root layout, and `api/{health,cards,flag}+api.ts`.
+- `src/game/` and `src/cards/` are pure TypeScript: the rules, serve order, rematches, streaks, scoring and `normalize`, plus the starter deck.
+- `src/server/` is server-only: the prompt, plan, rate limits, validation, card source and handlers. It is imported only by `+api.ts` files.
+- `src/components/`, `src/store/` and `src/lib/` are the UI, the persisted zustand store, and the NDJSON client.
+- `server.js`, `Dockerfile` and `fly.toml` are the deploy files. Deploying is a manual step (see NOTES.md).

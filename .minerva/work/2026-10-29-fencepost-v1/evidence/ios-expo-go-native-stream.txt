@@ -1,0 +1,15 @@
+# Expo Go (SDK 58), iPhone 17 Pro iOS 26.3 simulator, 2026-10-29 23:43:31 -0400
+# npx expo start (dev server serves the API routes) with OPENROUTER_BASE_URL -> scripts/stub-openrouter.mjs (first token 2 s, 40 ms/chunk).
+# A temporary probe module (removed before commit) ran at app start and called the real src/lib/cards-client.ts fetchBatch.
+# Line 2 is a raw relative expo/fetch('/api/health') call: 404, not the 200 the route returns. That reproduces the review finding that relative URLs don't resolve on native.
+ LOG  [probe] apiUrl http://127.0.0.1:8081/api/cards
+ LOG  [probe] raw relative expo/fetch status 404
+ LOG  [probe] +684ms start
+ LOG  [probe] +3547ms card
+ LOG  [probe] +4468ms card
+ LOG  [probe] +5556ms card
+ LOG  [probe] +6339ms card
+ LOG  [probe] +7140ms card
+{"event":"batch","device":"cacd01d918420feb","domain":"checkout","model":"stub/model","sent":5,"dropped":0,"latencyMs":6524,"usage":{"input":1200,"output":900},"outcome":"ok"}
+ LOG  [probe] +7191ms done
+ LOG  [probe] outcome {"ok":true} +7206ms

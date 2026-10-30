@@ -1,0 +1,14 @@
+# node server.js on 0b27a6f, no OpenRouter env, 2026-10-29 23:46:59 -0400
+$ GET /api/health
+{"ok":true} [200]
+$ POST /api/cards unknown field
+{"error":"Unrecognized key: \"prompt\""} [400]
+$ POST /api/cards valid (1st)
+{"error":"unavailable"} [503]
+$ POST /api/cards valid (2nd, same device)
+HTTP/1.1 429 Too Many Requests
+retry-after: 20
+$ POST /api/flag valid
+{"ok":true} [200]
+$ POST /api/cards 20 KB chunked, no Content-Length
+{"error":"body too large"} [413]

@@ -44,3 +44,11 @@ example
 
 # minerva worktrees
 .minerva/worktrees/
+
+# native export used for the secret-stripping check
+dist-native/
+
+# Playwright
+test-results/
+playwright-report/
+.tamagui/
