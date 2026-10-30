@@ -105,4 +105,26 @@ describe('game store persistence', () => {
     await storage.flush();
     expect(JSON.parse(backing.data.get(STORAGE_KEY)!).state.progress.answered).toBe(1);
   });
+
+  it('cancelling a batch keeps the cards that already arrived', async () => {
+    const card = (n: number) => ({ id: `g${n}`, type: 'model', domain: 'cache', title: `Gen ${n}`, prompt: 'p', why: 'w', boss: false, options: ['a', 'b', 'c'], answer: 0 });
+    let aborted = false;
+    const partial: FetchBatch = (_req, onEvent, signal) => {
+      onEvent({ event: 'start', domain: 'cache', count: 5 });
+      onEvent({ event: 'card', card: card(1) });
+      onEvent({ event: 'card', card: card(2) });
+      signal.addEventListener('abort', () => (aborted = true));
+      return new Promise(() => {});
+    };
+    const storage = debounceStorage(memoryStorage(), 1000);
+    const store = createGameStore({ storage, now: () => T0, rng: () => 0.5, newId: () => 'device-x', fetchBatch: partial, reportFlag: () => {} });
+    await hydrated(store);
+    store.getState().begin();
+    store.getState().answer(rightAnswer(currentCard(store)));
+    expect(store.getState().game?.fetch.inFlight).toBe(true);
+    store.getState().cancelFetch();
+    expect(aborted).toBe(true);
+    expect(store.getState().game?.fetch.inFlight).toBe(false);
+    expect(store.getState().game?.queue.map((c) => c.id)).toEqual(['g1', 'g2']);
+  });
 });
