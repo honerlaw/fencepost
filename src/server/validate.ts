@@ -44,7 +44,14 @@ export async function readBody(request: Request, limit: number): Promise<Parsed<
   if (request.body) {
     const reader = request.body.getReader();
     for (;;) {
-      const { done, value } = await reader.read();
+      let chunk: ReadableStreamReadResult<Uint8Array>;
+      try {
+        chunk = await reader.read();
+      } catch {
+        // The client went away mid-upload.
+        return { ok: false, error: 'incomplete body' };
+      }
+      const { done, value } = chunk;
       if (done) break;
       size += value.byteLength;
       if (size > limit) {

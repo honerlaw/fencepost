@@ -34,6 +34,21 @@
     - fix (all): "fresh expo export" reworded to `npm run e2e` (the script exports first); README settled as no change; `--no-deploy` creates no machines; NOTES notes later deploys keep the count and cross-refs the Rate-limit row; rationale moved out of criterion 12's text
 - [solo] resume implementation after replan: also fixing the provisional code-review bugs now (1 skip-all-starters stuck loading, 2 cancel on loading slot / done with nothing playable, 3 stale batch completion, 4–7 server hardening, 9–11 lows), because the replan resume changes the diff outside .minerva/work/ anyway, so both finding sets are regenerated against the final diff at the second completion check (evidence: phases.md Phase 2 step 4 "discard both … Phase 3 generates them again")
 - [solo] criterion 9 evidence (per replan): `npm run e2e` on a648e75 — 13 passed, 0 failed, 2026-10-29 23:30, tree clean → evidence/e2e-a648e75.txt. Criterion 8 unconfigured sequence re-run on a648e75 (200 / 400 / 503 / 429 retry-after 20 / flag 200 / 413 chunked) → evidence/server-unconfigured-a648e75.txt (tier: solo — mechanical evidence capture, no judgment)
+- [verified — accept] completion verification (second pass, after replan entry 2): Verifier reproduced all 14 criteria on HEAD 3809d43; a648e75 evidence counts because only .minerva/ changed since (tier: reviewer floor — Verifier; no interface change beyond what the proposal approved). Optional, non-blocking: re-export dist-native and re-grep; save a docker log; the "tree clean: 1 changes" header in e2e-a648e75.txt counts the evidence file itself, which was untracked while being written
+- [solo] review triage (second code review, HEAD 3809d43; the minerva audit re-run inline was clean, with no knowledge entries yet and spec fidelity OK). 8 FIX, 1 SUGGEST, 0 IGNORE.
+    - FIX:
+        - #1 high: expo/fetch is given relative URLs. Only the global fetch is origin-wrapped (verified in node_modules/@expo/metro-runtime/src/location/install.native.ts and expo/src/winter/fetch/fetch.ts), so every native /api call fails.
+        - #2: normal play hits the device bucket's 1-per-20 s limit. Causes are the chained fetch after a fast `done` and Try again soon after a fast failure.
+        - #3: there is no client deadline, so a hung stream leaves inFlight set forever.
+        - #4: Fly-Client-IP is trusted when not running on Fly.
+        - #5: a late failed outcome after `done` overwrites the success.
+        - #6: a primary model whose cards are all dropped never falls back.
+        - #7: quotes in recent titles.
+        - #8: a body stream error in readBody becomes a 500.
+        - Coverage: the flagWrong→reportFlag call is never asserted.
+    - SUGGEST: useAppLifecycle wiring tests. This is a standing gap; the pure createLifecycle is tested.
+    - No item has two defensible dispositions. Each has a writable failure scenario and is absorbable, so each is FIX by the deferral bar.
+    - Replan-vs-FIX: not triggered. #1 corrects the client so the planned origin-based native fetch works; the approach is unchanged.
 
 ## Work notes
 - **Tamagui pinned to 2.7.7, not 3.x.** npm latest was tamagui 3.1.7 (published 2026-10-28). On Expo SDK 58 web export it put atomic class names on elements but never injected their CSS — with the metro compiler on, with `disableExtraction`, and with client-only rendering alike — so cards rendered unstyled. 3.x also drops the `$` token prefix (`bg="board"`) and v6 config moves `bg` to `background`. 2.7.7 (what the user's seekless repo runs in production with Expo Router SSR) works first try with `withTamagui` + compiler on. 2.7.7 has no `@tamagui/config/v6`; using `v5` (shorthands-only, `$` tokens). Routine version choice within approach A, not a replan.
@@ -64,3 +79,4 @@
   - #10 ndjson handler errors surface
   - #11 dead `wasMissed` removed
   - Not changed: #8 (`recent` titles reach the prompt by design of handoff §8.3; a modified client only affects its own batch, and output still passes normalize). The flagWrong `pushRecent` is kept because criterion 2 names it; its test now clears recent first, so it discriminates.
+- 2026-10-29 23:35: re-exported dist-native (iOS + Android) on 3809d43 code. The `grep -rail` leak patterns find nothing (exit 1), and the "Overlapping bookings" sanity string is present in both .hbc bundles.

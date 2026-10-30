@@ -77,6 +77,8 @@ export function createLiveCardSource(opts: LiveSourceOptions): CardSource {
       if (sent === 0) throw new ModelFailedError(String(failure));
       throw failure;
     }
+    // A model that answered but produced nothing playable failed too, before any card was sent.
+    if (sent === 0 && !params.signal.aborted) throw new ModelFailedError(`no valid cards (${dropped} dropped)`);
     const usage = await result.usage.then(
       (u) => ({ input: u.inputTokens ?? null, output: u.outputTokens ?? null }),
       () => ({ input: null, output: null })

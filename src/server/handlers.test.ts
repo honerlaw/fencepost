@@ -249,11 +249,35 @@ describe('/api/cards streaming', () => {
     expect(m.model.doStreamCalls.every((c) => c.abortSignal?.aborted)).toBe(true);
   });
 
-  it('uses Fly-Client-IP, else the last X-Forwarded-For hop', () => {
+  it('trusts Fly-Client-IP only on Fly, else uses the last X-Forwarded-For hop', () => {
     const req = (headers: Record<string, string>) => new Request('http://x/', { headers });
-    expect(clientIp(req({ 'fly-client-ip': '9.9.9.9', 'x-forwarded-for': '1.1.1.1' }))).toBe('9.9.9.9');
-    expect(clientIp(req({ 'x-forwarded-for': '6.6.6.6, 10.0.0.1, 203.0.113.7' }))).toBe('203.0.113.7');
-    expect(clientIp(req({}))).toBe('unknown');
+    const spoofed = req({ 'fly-client-ip': '9.9.9.9', 'x-forwarded-for': '1.1.1.1' });
+    expect(clientIp(spoofed, true)).toBe('9.9.9.9');
+    expect(clientIp(spoofed, false)).toBe('1.1.1.1');
+    expect(clientIp(req({ 'x-forwarded-for': '6.6.6.6, 10.0.0.1, 203.0.113.7' }), false)).toBe('203.0.113.7');
+    expect(clientIp(req({}), true)).toBe('unknown');
+  });
+
+  it('falls back to the second model when the first answers with nothing playable', async () => {
+    const junk = scriptedModel([{ nope: 1 }, { nope: 2 }]);
+    const good = scriptedModel([modelCard('Saved by fallback')]);
+    const { handlers, logs } = setup({ primary: junk, fallback: good });
+    const events = await all(await handlers.cards(cardsRequest()));
+    expect(events.filter((e) => e.event === 'card')).toHaveLength(1);
+    expect(events.at(-1)).toMatchObject({ event: 'done', sent: 1 });
+    expect(logs[0]).toMatchObject({ model: 'fallback', sent: 1 });
+  });
+
+  it('answers 400 when the client goes away mid-upload', async () => {
+    const broken = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"deviceId":'));
+        controller.error(new Error('socket hang up'));
+      },
+    });
+    const { handlers } = setup({ primary: scriptedModel([]) });
+    const res = await handlers.cards(new Request('http://localhost/api/cards', { method: 'POST', body: broken, duplex: 'half' } as RequestInit));
+    expect(res.status).toBe(400);
   });
 
   it('passes the output-token cap to the model', async () => {

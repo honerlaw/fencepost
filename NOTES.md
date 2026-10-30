@@ -28,7 +28,8 @@ On (`experiments.reactCompiler` in `app.json`). It works with Tamagui 2.7.7 and 
 | `/api/flag` body | `{ deviceId, card, reason }` | As specified. The client strips its own serve-time flags (`double`, `rematch`, `starter`) before sending. |
 | JetBrains Mono ligatures | not mentioned | The font draws `<=` as `≤` and `==` as one bar, which breaks comparison puzzles. Web uses CSS `font-variant-ligatures: none`. On iOS the new-architecture text renderer ignores the ligature `fontVariant` values, so code lines get an invisible word joiner (U+2060) between neighbouring symbols. Screen-reader labels keep the original text. |
 | Lint | — | `npx expo lint` installs ESLint 9 + `eslint-config-expo` and writes `eslint.config.js`. |
-| Rate-limit state | one in-memory limiter | Each `+api.ts` route is bundled separately, so `/api/cards` and `/api/flag` each keep their own limiter state. Both are still per machine; move them to Redis before running more than one machine. |
+| Rate-limit state | one in-memory limiter | Each `+api.ts` route is bundled separately, so `/api/cards` and `/api/flag` each keep their own limiter state. Both are still per machine; move them to Redis before running more than one machine. The IP limit trusts `Fly-Client-IP` only when `FLY_APP_NAME` is set (on Fly); elsewhere it uses the last `X-Forwarded-For` hop, which a client can forge if no proxy sits in front. The app starts batches at least 20 s apart (the device refill, shared as `MIN_FETCH_GAP_MS`) so normal play never hits a 429, and gives up on a batch still open after 100 s. |
+| `expo/fetch` and relative URLs | `fetch('/api/cards')` | Only the global `fetch` is wrapped to resolve relative paths against the router origin; `expo/fetch` (needed for streamed bodies) passes the path straight to native, where it fails. `src/lib/api-url.ts` builds the absolute URL from `window.location`, which expo-router sets from the dev-server origin or the `origin` above. |
 
 ## Not done by this run: user-run steps
 
@@ -48,7 +49,7 @@ These were left undone on purpose. Most need your accounts, money or hardware, o
    - From now on, adding a native module that Expo Go doesn't bundle, or a config plugin whose effect only a native build exercises, means a dev build is required to verify it.
 6. **Android.** No emulator pass was done (no Android SDK on this machine).
 7. **Manual simulator passes.** Airplane mode mid-batch, reduce motion, large text / Dynamic Type, native swipe feel, and physical haptic feel.
-8. **Native streaming against a live server.** The client reads `/api/cards` with `expo/fetch`. Incremental reads are verified on web, and the server's streaming is verified with `curl -N` (`.minerva/work/2026-10-29-fencepost-v1/evidence/curl-stream.txt`). The native read path is only bundled and unit-tested.
+8. **Native streaming against the deployed server.** The client reads `/api/cards` with `expo/fetch`. Incremental reads are verified on web, the server's streaming with `curl -N` (`evidence/curl-stream.txt`), and the native read path in Expo Go on the iOS simulator against the dev server and the fake OpenRouter (`evidence/ios-expo-go-native-stream.txt`: 5 cards arriving about 1 s apart). Not verified: Android, a release build (which resolves against the `origin` above instead of the dev server), and a real network between the phone and Fly.
 
 ## Small known follow-ups
 

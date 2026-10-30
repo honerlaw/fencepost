@@ -1,5 +1,7 @@
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 
+import { MIN_FETCH_GAP_MS } from '@/game/fetch-policy';
+
 import { createLiveCardSource } from './card-source';
 import { createHandlers, type Handlers } from './handlers';
 import { logLine } from './log';
@@ -34,9 +36,10 @@ export function handlersFromEnv(env: Record<string, string | undefined> = proces
         })
       : null,
     batchSize: intEnv(env, 'BATCH_SIZE', 5),
+    behindFly: !!env.FLY_APP_NAME,
     limits: {
       // One batch per 20 s and 60 a day per device; a shared IP (an office, a carrier NAT) gets more room.
-      cardsDevice: createRateLimiter({ burst: 1, refillMs: 20 * SECOND, perDay: intEnv(env, 'RATE_LIMIT_PER_DAY', 60) }),
+      cardsDevice: createRateLimiter({ burst: 1, refillMs: MIN_FETCH_GAP_MS, perDay: intEnv(env, 'RATE_LIMIT_PER_DAY', 60) }),
       cardsIp: createRateLimiter({ burst: 6, refillMs: 10 * SECOND, perDay: 600 }),
       flagDevice: createRateLimiter({ burst: 5, refillMs: MINUTE, perDay: 100 }),
       flagIp: createRateLimiter({ burst: 20, refillMs: 15 * SECOND }),

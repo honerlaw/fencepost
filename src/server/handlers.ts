@@ -21,6 +21,8 @@ export interface HandlerDeps {
     flagDevice: RateLimiter;
     flagIp: RateLimiter;
   };
+  /** True when running on Fly (FLY_APP_NAME is set), where Fly-Client-IP can be trusted. */
+  behindFly?: boolean;
   rng: Rng;
   now: () => number;
   log: (entry: Record<string, unknown>) => void;
@@ -34,11 +36,13 @@ function limited(result: LimitResult & { ok: false }) {
 }
 
 /**
- * Fly puts the caller's address in Fly-Client-IP. Elsewhere, the last X-Forwarded-For hop is
- * the one the nearest proxy appended; earlier hops are whatever the client sent.
+ * On Fly, the edge proxy sets Fly-Client-IP to the caller's address. Anywhere else that header is
+ * whatever the client sent, so it is ignored and the last X-Forwarded-For hop (the one the nearest
+ * proxy appended) is used. Without any proxy in front, both headers are client-controlled.
  */
-export function clientIp(request: Request): string {
-  return request.headers.get('fly-client-ip') ?? request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() ?? 'unknown';
+export function clientIp(request: Request, behindFly: boolean): string {
+  const fly = behindFly ? request.headers.get('fly-client-ip') : null;
+  return fly ?? request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() ?? 'unknown';
 }
 
 export function createHandlers(deps: HandlerDeps) {
@@ -63,7 +67,7 @@ export function createHandlers(deps: HandlerDeps) {
     const params = parsed.value;
 
     const limit = takeAll([
-      [deps.limits.cardsIp, clientIp(request)],
+      [deps.limits.cardsIp, clientIp(request, !!deps.behindFly)],
       [deps.limits.cardsDevice, params.deviceId],
     ]);
     if (!limit.ok) return limited(limit);
@@ -177,7 +181,7 @@ export function createHandlers(deps: HandlerDeps) {
     const parsed = parseFlagRequest(body.value);
     if (!parsed.ok) return json({ error: parsed.error }, 400);
     const limit = takeAll([
-      [deps.limits.flagIp, clientIp(request)],
+      [deps.limits.flagIp, clientIp(request, !!deps.behindFly)],
       [deps.limits.flagDevice, parsed.value.deviceId],
     ]);
     if (!limit.ok) return limited(limit);

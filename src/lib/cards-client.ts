@@ -4,13 +4,14 @@ import { errorCodeForStatus } from '@/game/fetch-policy';
 import type { BatchEvent } from '@/game/engine';
 import type { Card, PlayedCard } from '@/game/types';
 import type { FetchBatch } from '@/store/game-store';
+import { apiUrl } from './api-url';
 import { asBatchEvent, readNdjson } from './ndjson';
 
-/** Streams one batch from /api/cards. Relative URLs resolve via the expo-router `origin` on native. */
+/** Streams one batch from /api/cards (see `apiUrl` for how native resolves the server). */
 export const fetchBatch: FetchBatch = async (req, onEvent, signal) => {
   let res: Awaited<ReturnType<typeof fetch>>;
   try {
-    res = await fetch('/api/cards', {
+    res = await fetch(apiUrl('/api/cards'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
@@ -35,7 +36,7 @@ export const fetchBatch: FetchBatch = async (req, onEvent, signal) => {
 export function reportCard(deviceId: string, card: Card): void {
   // Serve-time flags are the client's business, not part of the card.
   const { double: _double, rematch: _rematch, starter: _starter, ...plain } = card as PlayedCard;
-  fetch('/api/flag', {
+  fetch(apiUrl('/api/flag'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ deviceId, card: plain, reason: 'wrong' }),

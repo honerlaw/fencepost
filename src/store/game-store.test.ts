@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StateStorage } from 'zustand/middleware';
 
+import { BATCH_DEADLINE_MS, MIN_FETCH_GAP_MS } from '@/game/fetch-policy';
 import type { Card } from '@/game/types';
 import { debounceStorage } from './debounced-storage';
 import { createGameStore, STORAGE_KEY, type FetchBatch } from './game-store';
@@ -161,9 +162,13 @@ describe('game store batches', () => {
     return { calls, fetchBatch };
   }
 
-  async function firstTimer(fetchBatch: FetchBatch) {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function firstTimer(fetchBatch: FetchBatch, clock = { now: T0 }, reportFlag: (deviceId: string, card: Card) => void = () => {}) {
     const storage = debounceStorage(memoryStorage(), 1000);
-    const store = createGameStore({ storage, now: () => T0, rng: () => 0.5, newId: () => 'device-x', fetchBatch, reportFlag: () => {} });
+    const store = createGameStore({ storage, now: () => clock.now, rng: () => 0.5, newId: () => 'device-x', fetchBatch, reportFlag });
     await hydrated(store);
     store.getState().begin();
     return store;
@@ -185,11 +190,13 @@ describe('game store batches', () => {
 
   it('cancelling on the loading card shows the error card with Try again', async () => {
     const { calls, fetchBatch } = manualBatches();
-    const store = await firstTimer(fetchBatch);
+    const clock = { now: T0 };
+    const store = await firstTimer(fetchBatch, clock);
     skipToLoading(store);
     store.getState().cancelFetch();
     expect(calls[0].signal.aborted).toBe(true);
     expect(store.getState().game?.current).toEqual({ kind: 'error', code: 'network' });
+    clock.now += MIN_FETCH_GAP_MS;
     store.getState().retry();
     expect(calls).toHaveLength(2);
     expect(store.getState().game?.current.kind).toBe('loading');
@@ -197,9 +204,11 @@ describe('game store batches', () => {
 
   it('a batch that ends while the player waits starts the next one, and its late completion leaves that one alone', async () => {
     const { calls, fetchBatch } = manualBatches();
-    const store = await firstTimer(fetchBatch);
+    const clock = { now: T0 };
+    const store = await firstTimer(fetchBatch, clock);
     skipToLoading(store);
     const a = calls[0];
+    clock.now += MIN_FETCH_GAP_MS;
     a.emit({ event: 'start', domain: 'cache', count: 5 });
     a.emit({ event: 'card', card: card(1) });
     store.getState().answer(0);
@@ -218,5 +227,65 @@ describe('game store batches', () => {
     expect(store.getState().game?.current.kind).toBe('loading');
     calls[1].emit({ event: 'card', card: card(2) });
     expect(currentCard(store).id).toBe('g2');
+  });
+
+  it('waits out the server gap before the next batch instead of tripping the rate limit', async () => {
+    vi.useFakeTimers();
+    const { calls, fetchBatch } = manualBatches();
+    const clock = { now: T0 };
+    const store = await firstTimer(fetchBatch, clock);
+    skipToLoading(store);
+    calls[0].emit({ event: 'error', code: 'upstream_error' });
+    calls[0].finish();
+    expect(store.getState().game?.current).toEqual({ kind: 'error', code: 'upstream_error' });
+
+    clock.now += 5_000;
+    store.getState().retry();
+    // Try again shows the loading card at once but sends nothing until 20 s after the last batch.
+    expect(store.getState().game?.current.kind).toBe('loading');
+    expect(calls).toHaveLength(1);
+    vi.advanceTimersByTime(MIN_FETCH_GAP_MS - 5_000 - 1);
+    expect(calls).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('gives up on a batch that never ends and offers Try again', async () => {
+    vi.useFakeTimers();
+    const { calls, fetchBatch } = manualBatches();
+    const store = await firstTimer(fetchBatch);
+    skipToLoading(store);
+    vi.advanceTimersByTime(BATCH_DEADLINE_MS);
+    expect(calls[0].signal.aborted).toBe(true);
+    expect(store.getState().game?.current).toEqual({ kind: 'error', code: 'network' });
+    expect(store.getState().game?.fetch.inFlight).toBe(false);
+  });
+
+  it('a stream failure after done does not undo the finished batch', async () => {
+    const failing: { reject?: () => void; emit?: Parameters<FetchBatch>[1] } = {};
+    const fetchBatch: FetchBatch = (_req, onEvent) =>
+      new Promise((_resolve, reject) => {
+        failing.emit = onEvent;
+        failing.reject = () => reject(new Error('connection reset'));
+      });
+    const store = await firstTimer(fetchBatch);
+    skipToLoading(store);
+    for (let n = 1; n <= 4; n++) failing.emit!({ event: 'card', card: card(n) });
+    failing.emit!({ event: 'done', sent: 4 });
+    failing.reject!();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(store.getState().game?.fetch).toMatchObject({ inFlight: false, error: null });
+  });
+
+  it('reports a card flagged as wrong', async () => {
+    const reported: [string, string][] = [];
+    const { fetchBatch } = manualBatches();
+    const store = await firstTimer(fetchBatch, { now: T0 }, (deviceId, c) => reported.push([deviceId, c.id]));
+    store.getState().answer(wrongAnswer(currentCard(store)));
+    store.getState().flagWrong();
+    expect(reported).toEqual([['device-x', 'starter-1']]);
+    store.getState().flagWrong();
+    expect(reported).toHaveLength(1);
   });
 });
