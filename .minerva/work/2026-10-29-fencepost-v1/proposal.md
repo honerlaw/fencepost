@@ -1,7 +1,7 @@
 # Proposal: fencepost-v1
 
 **Date**: 2026-10-29
-**Status**: Shipped (2026-10-29)
+**Status**: Complete (2026-10-29), not shipped: held on the local branch at the user's request (no push or PR)
 
 ## Goal
 Build Fencepost v1 as specified in the build handoff (`~/Downloads/FENCEPOST_HANDOFF.md`, copied into the unit as `.minerva/work/2026-10-29-fencepost-v1/handoff.md`): an Expo app (iOS, Android, web from one codebase) that plays a swipe-up feed of tap-to-answer logic-puzzle cards of five types (flaw, break, trace, model, order), with a bundled 6-card starter deck, the full game rules of handoff §7 (scoring, combos, 2x and boss cards, daily streak, ranks, rematches, skip, "card was wrong", celebrations, haptics, verdict words), the §9 visual design (whiteboard/chalkboard themes, marker circle, transitions, verdict panel, top bar, topics/stats sheet), on-device persistence, and a small stateless server (Expo Router API routes served by `expo-server`'s Express adapter) that generates cards on demand through OpenRouter via the Vercel AI SDK and streams them to the app as NDJSON — plus the Docker/Fly.io deployment artifacts.
