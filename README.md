@@ -36,7 +36,7 @@ PORT=8080 npm run serve                   # Express + expo-server; open http://l
 curl localhost:8080/api/health            # {"ok":true}
 ```
 
-To see real streaming without an OpenRouter key, run the fake OpenRouter in `scripts/`:
+To see real streaming without an OpenRouter key, run the fake OpenRouter in `scripts/`. The inline values below are throwaway stubs, not secrets:
 
 ```bash
 npm run stub:openrouter &                 # listens on 8790, streams scripts/stub-cards.json slowly
