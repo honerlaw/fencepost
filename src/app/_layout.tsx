@@ -2,7 +2,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { Platform, useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -14,17 +14,18 @@ import { tamaguiConfig } from '../../tamagui.config';
 
 SplashScreen.preventAutoHideAsync();
 
+// During hydration React reads the server snapshot (false), then re-renders with the client one.
+const noSubscribe = () => () => {};
+const isClient = () => true;
+const isServer = () => false;
+
 export default function RootLayout() {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const [fontsLoaded, fontError] = useFonts(appFonts);
   // On web the server render can't know the color scheme or the saved progress, and
   // Tamagui only injects CSS for client renders, so the app renders after mount.
-  const [mounted, setMounted] = useState(Platform.OS !== 'web');
+  const mounted = useSyncExternalStore(noSubscribe, isClient, isServer) || Platform.OS !== 'web';
   const ready = (fontsLoaded || fontError != null) && mounted;
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();

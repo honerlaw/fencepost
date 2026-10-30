@@ -21,7 +21,7 @@ import {
   type GameState,
 } from '@/game/engine';
 import type { FetchErrorCode } from '@/game/fetch-policy';
-import type { DomainId, Progress, Rng } from '@/game/types';
+import type { Card, DomainId, Progress, Rng } from '@/game/types';
 import type { DebouncedStorage } from './debounced-storage';
 
 export const STORAGE_KEY = 'fencepost-progress';
@@ -43,6 +43,8 @@ export interface StoreDeps {
   rng: Rng;
   newId: () => string;
   fetchBatch: FetchBatch;
+  /** Sends a card the player flagged as wrong to the server (best effort). */
+  reportFlag: (deviceId: string, card: Card) => void;
 }
 
 export interface GameStore {
@@ -150,7 +152,12 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
             ),
           next: () => update((g) => (g.current.kind === 'card' && g.current.result ? advance(g, d()) : g)),
           skip: () => update((g) => skipCard(g, d())),
-          flagWrong: () => update((g) => flagCard(g)),
+          flagWrong: () => {
+            const before = get().game;
+            update((g) => flagCard(g));
+            const after = get().game;
+            if (before !== after && after?.current.kind === 'card') deps.reportFlag(after.progress.deviceId, after.current.card);
+          },
           dealIn: () => update((g) => dealInSession(g, d())),
           retry: () => {
             const game = get().game;

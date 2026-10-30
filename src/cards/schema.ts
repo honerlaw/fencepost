@@ -5,7 +5,7 @@ import { z } from 'zod';
  * structured-output modes handle this far more reliably than unions. The answer
  * is named by text, not index (models get indexes wrong).
  */
-export const RawCard = z.object({
+export const RawCardSchema = z.object({
   type: z.enum(['flaw', 'break', 'trace', 'model', 'order']),
   title: z.string(),
   prompt: z.string(),
@@ -20,4 +20,4 @@ export const RawCard = z.object({
   why: z.string(),
 });
 
-export type RawCard = z.infer<typeof RawCard>;
+export type RawCard = z.infer<typeof RawCardSchema>;

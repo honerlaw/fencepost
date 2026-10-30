@@ -1,6 +1,6 @@
 import { shuffle } from '@/game/rng';
 import type { Card, DomainId, Rng } from '@/game/types';
-import { RawCard } from './schema';
+import { RawCardSchema } from './schema';
 
 export const LIMITS = { title: 70, prompt: 280, why: 420, input: 280 } as const;
 const MAX_CODE_LINES = 16;
@@ -65,7 +65,7 @@ function placeAnswer(options: string[], correct: string | null, rng: Rng) {
  * Bad cards are dropped, never patched; only over-long text is truncated.
  */
 export function normalize(input: unknown, opts: NormalizeOptions): Card | null {
-  const parsed = RawCard.safeParse(input);
+  const parsed = RawCardSchema.safeParse(input);
   if (!parsed.success) return null;
   const raw = parsed.data;
 

@@ -30,6 +30,7 @@ function makeStore(backing: StateStorage, clock: { now: number }) {
     rng: () => 0.5,
     newId: () => `device-${++id}`,
     fetchBatch: neverFetch,
+    reportFlag: () => {},
   });
   return { store, storage };
 }
