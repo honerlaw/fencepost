@@ -1,0 +1,30 @@
+/** Reads a byte stream as newline-delimited JSON, calling onValue per parsed line. Bad lines are skipped. */
+export async function readNdjson(body: ReadableStream<Uint8Array>, onValue: (value: unknown) => void): Promise<void> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const emit = (line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    let value: unknown;
+    try {
+      value = JSON.parse(trimmed);
+    } catch {
+      // A malformed line is dropped; the rest of the batch still plays.
+      return;
+    }
+    onValue(value);
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl = buffer.indexOf('\n');
+    while (nl !== -1) {
+      emit(buffer.slice(0, nl));
+      buffer = buffer.slice(nl + 1);
+      nl = buffer.indexOf('\n');
+    }
+  }
+  emit(buffer + decoder.decode());
+}

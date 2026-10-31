@@ -30,7 +30,7 @@ const E2E = ['e2e/**/*.ts'];
 // block that adds a selector spreads this list.
 const NO_PROCESS_ENV = {
   selector: "MemberExpression[object.name='process'][property.name='env']",
-  message: 'Read env only in src/server/from-env.ts, which keeps secrets out of the client bundle.',
+  message: 'Read env only in src/server/from-env/, which keeps secrets out of the client bundle.',
 };
 const NO_CAST_JSON_PARSE = {
   selector: "TSAsExpression > CallExpression[callee.object.name='JSON'][callee.property.name='parse']",
@@ -264,13 +264,13 @@ export default defineConfig([
     rules: { 'no-restricted-imports': ['error', { patterns: [SERVER_IMPORTS] }] },
   },
   {
-    files: ['src/server/from-env.ts'],
+    files: ['src/server/from-env/**'],
     rules: { 'no-restricted-syntax': ['error', ...SHARED_SYNTAX_BANS.filter((ban) => ban !== NO_PROCESS_ENV)] },
   },
 
   // Only these may print.
   {
-    files: ['src/server/log.ts', 'scripts/**', 'server.js'],
+    files: ['src/server/log/log-line.ts', 'scripts/**', 'server.js'],
     rules: { 'no-console': 'off' },
   },
 
