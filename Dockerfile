@@ -16,6 +16,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY server.js ./
-USER node
+# The `node` user, by number so a host can check it is not root.
+USER 1000:1000
 EXPOSE 8080
 CMD ["node", "server.js"]

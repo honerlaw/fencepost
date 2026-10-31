@@ -1,0 +1,58 @@
+# Project rules. These run offline and only change when this file does, so they can block a PR.
+# Registry packs change on their own schedule, so they run as advisory only.
+rules:
+  - id: secret-named-expo-public
+    message: EXPO_PUBLIC_ values are inlined into the client bundle. Secrets stay in Doppler and on the server.
+    severity: ERROR
+    languages: [regex]
+    pattern-regex: EXPO_PUBLIC_[A-Z0-9_]*(KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)
+    paths:
+      exclude: ['AGENTS.md', '.minerva/', 'README.md', 'NOTES.md']
+  - id: openrouter-key-literal
+    message: An OpenRouter key must never be in source.
+    severity: ERROR
+    languages: [regex]
+    pattern-regex: sk-or-(v1-)?[A-Za-z0-9]{20,}
+  - id: no-dangerous-html
+    message: Rendering raw HTML from model output is an XSS hole. Render it as text.
+    severity: ERROR
+    languages: [typescript]
+    pattern-either:
+      - pattern: <$X dangerouslySetInnerHTML={...} />
+      - pattern: $EL.innerHTML = $V
+  - id: no-dynamic-code
+    message: Generated cards are untrusted. Nothing may be executed as code.
+    severity: ERROR
+    languages: [typescript]
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+  - id: no-child-process-in-app
+    message: The app and server have no reason to spawn processes.
+    severity: ERROR
+    languages: [typescript]
+    paths:
+      include: ['/src/']
+    pattern-either:
+      - pattern: import $X from 'node:child_process'
+      - pattern: import { $X } from 'node:child_process'
+      - pattern: require('node:child_process')
+      - pattern: require('child_process')
+  - id: stream-text-needs-limits
+    message: A model call needs an abort signal and an output cap, or a hung model holds a request open and burns credit.
+    severity: ERROR
+    languages: [typescript]
+    paths:
+      include: ['/src/']
+      exclude: ['*.test.ts']
+    patterns:
+      - pattern: streamText({...})
+      - pattern-not: 'streamText({..., abortSignal: $S, ..., maxOutputTokens: $M, ...})'
+      - pattern-not: 'streamText({..., maxOutputTokens: $M, ..., abortSignal: $S, ...})'
+  - id: no-pull-request-target
+    message: pull_request_target runs fork code with write access on a public repo.
+    severity: ERROR
+    languages: [regex]
+    paths:
+      include: ['/.github/workflows/']
+    pattern-regex: pull_request_target
