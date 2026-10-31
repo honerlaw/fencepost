@@ -13,13 +13,6 @@ import { createLiveCardSource, type CardSource } from '@/server/card-source';
 import { makePlan, pickDomain, pickFlavor } from '@/server/plan';
 import { buildPrompt } from '@/server/prompt';
 
-// The project's ambient `process` comes from React Native's typings, which lack these.
-declare const process: {
-  argv: string[];
-  env: Record<string, string | undefined>;
-  exit: (code: number) => never;
-};
-
 const { env } = process;
 
 interface Totals {

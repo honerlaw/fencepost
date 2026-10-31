@@ -52,14 +52,14 @@ module.exports = {
       name: 'no-dev-dependency-in-production',
       comment: 'A dev dependency is missing from the production image.',
       severity: 'error',
-      from: { path: '^src/', pathNot: '\\.test\\.tsx?$' },
+      from: { path: '^src/', pathNot: String.raw`\.test\.tsx?$` },
       to: { dependencyTypes: ['npm-dev'], dependencyTypesNot: ['type-only'], pathNot: 'node_modules/@types/' },
     },
     {
       name: 'no-tests-from-production',
       severity: 'error',
-      from: { pathNot: '\\.(test|spec)\\.tsx?$' },
-      to: { path: '\\.test\\.tsx?$' },
+      from: { pathNot: String.raw`\.(test|spec)\.tsx?$` },
+      to: { path: String.raw`\.test\.tsx?$` },
     },
   ],
   options: {

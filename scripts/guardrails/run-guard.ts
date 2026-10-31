@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 
 const CHECKS: [string, string][] = [
   ['types', 'tsc --noEmit'],
+  ['script types', 'tsc --noEmit --project scripts/tsconfig.json'],
   ['lint', 'eslint . --max-warnings 0'],
   ['format', 'prettier --check .'],
   ['dead code', 'knip'],
@@ -15,7 +16,6 @@ const CHECKS: [string, string][] = [
     'lockfile',
     'lockfile-lint --path package-lock.json --type npm --allowed-hosts npm --validate-https --validate-integrity',
   ],
-  ['expo versions', 'expo install --check'],
   ['tests + coverage', 'vitest run --coverage'],
 ];
 

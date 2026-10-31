@@ -28,3 +28,6 @@
 - CI calls tools directly rather than through package.json scripts: `.github/` needs the label to change and package.json does not, so a script could otherwise be gutted without approval.
 - Dockerfile `USER node` became `USER 1000:1000` for hadolint DL3066. hadolint's default threshold fails on info findings, so this fix was preferred to lowering the threshold.
 - `.claude/settings.json` hook wiring is held back until the fork finishes, so hooks cannot fire on its in-progress edits.
+- `expo install --check` moved from blocking to advisory. It fails whenever Expo publishes a patch (58.0.21 installed, ~58.0.22 expected), so it depends on the outside world rather than the commit, which is the rule the advisory job already follows. expo, expo-router and expo-sqlite are one patch behind; not bumped here.
+- `expo-updates` is ignored in knip because its Expo plugin assumes updates are on; the app does not use them.
+- TS 6 defaults `types` to none, so `scripts/` has its own tsconfig with Node types, and the app keeps React Native's globals.

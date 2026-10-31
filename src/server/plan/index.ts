@@ -1,4 +1,4 @@
-export { TYPE_WEIGHTS, BOSS_CHANCE, FLAVORS } from './constants';
+export { TYPE_WEIGHTS } from './constants';
 export { makePlan } from './make-plan';
 export { pickDomain } from './pick-domain';
 export { pickFlavor } from './pick-flavor';

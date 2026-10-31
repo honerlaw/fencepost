@@ -15,11 +15,19 @@ const COMMENT_KINDS: [string, RegExp][] = [
   ['ts-ignore', /@ts-(ignore|expect-error|nocheck)/],
   ['coverage-ignore', /(istanbul|v8|c8) ignore/],
   ['prettier-ignore', /prettier-ignore/],
-  ['scanner-ignore', /(nosemgrep|gitleaks:allow|lgtm\[)/],
+  ['scanner-ignore', /nosemgrep|gitleaks:allow|lgtm\[/],
 ];
 
-const isTest = (file: string) => /\.(test|spec)\.tsx?$/.test(file) || file.startsWith('e2e/');
-const isAstScanned = (file: string) => /\.(ts|tsx|mts)$/.test(file);
+const isTest = (file: string) => /\.(?:test|spec)\.tsx?$/.test(file) || file.startsWith('e2e/');
+const isAstScanned = (file: string) => /\.(?:ts|tsx|mts)$/.test(file);
+
+function isFocusOrSkip(callee: string): boolean {
+  const parts = callee.split('.');
+  return (
+    ['it', 'test', 'describe'].includes(parts[0] ?? '') &&
+    ['only', 'skip', 'todo', 'fixme'].includes(parts.at(-1) ?? '')
+  );
+}
 
 function commentHits(text: string): string[] {
   const hits: string[] = [];
@@ -40,7 +48,7 @@ function astHits(file: string, text: string): string[] {
     if (ts.isAsExpression(node) && node.type.getText(source) !== 'const') {
       hits.push(node.type.kind === ts.SyntaxKind.AnyKeyword ? 'as-any' : 'as-cast');
     }
-    if (ts.isCallExpression(node) && /\.(only|skip|todo|fixme)$/.test(node.expression.getText(source))) {
+    if (ts.isCallExpression(node) && isFocusOrSkip(node.expression.getText(source))) {
       hits.push('test-focus-or-skip');
     }
     ts.forEachChild(node, visit);
@@ -84,7 +92,7 @@ export function compare(found: Map<string, Map<string, number>>, budgets: Budget
 function main(): void {
   const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8' })
     .split('\n')
-    .filter((file) => /\.(ts|tsx|mts|js|mjs|cjs)$/.test(file) && !file.startsWith('scripts/guardrails/'));
+    .filter((file) => /\.(?:ts|tsx|mts|js|mjs|cjs)$/.test(file) && !file.startsWith('scripts/guardrails/'));
   const found = new Map<string, Map<string, number>>();
   for (const file of files) {
     const counts = scan(file, readFileSync(file, 'utf8'));
@@ -99,4 +107,4 @@ function main(): void {
   console.log(`suppressions: ${files.length} files within budget`);
 }
 
-if (process.argv[1]?.endsWith('check-suppressions.ts')) main();
+if (process.argv[1]?.endsWith('check-suppressions.ts') === true) main();

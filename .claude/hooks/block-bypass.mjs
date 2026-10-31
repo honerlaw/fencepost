@@ -4,36 +4,40 @@ import { readFileSync } from 'node:fs';
 
 const withoutQuotedText = (command) => command.replaceAll(/'[^']*'|"[^"]*"/g, '""');
 
+const skipsHooks = (part) => {
+  const words = part.trim().split(/\s+/);
+  if (!words.includes('git')) return false;
+  return words.includes('--no-verify') || (words.includes('commit') && words.some((word) => /^-[a-z]*n/i.test(word)));
+};
+
 const RULES = [
   {
     reason: 'skips the git hooks',
-    pattern: /\bgit\b[^|;&\n]*\s--no-verify\b/,
-    target: withoutQuotedText,
-  },
-  {
-    reason: 'skips the git hooks',
-    pattern: /\bgit\s+commit\b[^|;&\n]*\s-[a-zA-Z]*n[a-zA-Z]*(\s|$)/,
-    target: withoutQuotedText,
+    matches: (command) =>
+      withoutQuotedText(command)
+        .split(/[|;&\n]/)
+        .some((part) => skipsHooks(part)),
   },
   {
     reason: 'turns off lefthook',
-    pattern: /\bLEFTHOOK(_EXCLUDE|_QUIET)?=/,
-    target: withoutQuotedText,
+    matches: (command) => /\bLEFTHOOK(?:_EXCLUDE|_QUIET)?=/.test(withoutQuotedText(command)),
   },
   {
     reason: 'points git at different hooks',
-    pattern: /\bcore\.hooksPath\b/,
-    target: withoutQuotedText,
+    matches: (command) => withoutQuotedText(command).includes('core.hooksPath'),
   },
   {
     reason: 'adds the label only a person may add',
-    pattern: /\bgh\b[^\n;|&]*(--add-label|\/labels)[^\n;|&]*guardrails-approved/,
-    target: (command) => command,
+    matches: (command) =>
+      command.split(/[|;&\n]/).some((part) => {
+        const isLabelWrite = /\bgh\b/.test(part) && (part.includes('--add-label') || part.includes('/labels'));
+        return isLabelWrite && part.includes('guardrails-approved');
+      }),
   },
 ];
 
 const command = JSON.parse(readFileSync(0, 'utf8')).tool_input?.command ?? '';
-const hit = RULES.find(({ pattern, target }) => pattern.test(target(command)));
+const hit = RULES.find((rule) => rule.matches(command));
 if (hit !== undefined) {
   console.error(`Blocked: this command ${hit.reason}. Fix the failure instead, or ask the user to do this themselves.`);
   process.exit(2);

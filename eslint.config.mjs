@@ -69,6 +69,8 @@ const SERVER_IMPORTS = {
 };
 
 export default defineConfig([
+  { linterOptions: { reportUnusedDisableDirectives: 'error' } },
+
   globalIgnores([
     'dist/*',
     'dist-native/*',
@@ -270,7 +272,7 @@ export default defineConfig([
 
   // Only these may print.
   {
-    files: ['src/server/log/log-line.ts', 'scripts/**', 'server.js'],
+    files: ['src/server/log/log-line.ts', 'scripts/**', '.claude/hooks/**', 'server.js'],
     rules: { 'no-console': 'off' },
   },
 
@@ -293,14 +295,21 @@ export default defineConfig([
     },
   },
 
-  // Local-only code: these point at 127.0.0.1 stubs and read their own files.
+  // Metro inlines client env vars by exact name; these run on Node, where that does not apply.
   {
-    files: [...TESTS, ...E2E, 'scripts/**', 'playwright.config.ts'],
+    files: ['scripts/**'],
+    rules: { 'expo/no-env-var-destructuring': 'off' },
+  },
+
+  // Local-only code: these point at 127.0.0.1 stubs, read their own files and call git and node.
+  {
+    files: [...TESTS, ...E2E, 'scripts/**', '.claude/hooks/**', 'playwright.config.ts'],
     rules: {
       'sonarjs/no-hardcoded-ip': 'off',
       'sonarjs/no-clear-text-protocols': 'off',
       'security/detect-non-literal-fs-filename': 'off',
       'security/detect-non-literal-regexp': 'off',
+      'sonarjs/no-os-command-from-path': 'off',
       'unicorn/no-process-exit': 'off',
     },
   },

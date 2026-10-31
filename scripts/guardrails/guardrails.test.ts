@@ -110,13 +110,13 @@ describe('guardrail paths', () => {
   });
 });
 
-describe('block-bypass hook', () => {
-  const run = (command: string) =>
-    spawnSync('node', ['.claude/hooks/block-bypass.mjs'], {
-      input: JSON.stringify({ tool_input: { command } }),
-      encoding: 'utf8',
-    }).status;
+const runBlockBypass = (command: string) =>
+  spawnSync('node', ['.claude/hooks/block-bypass.mjs'], {
+    input: JSON.stringify({ tool_input: { command } }),
+    encoding: 'utf8',
+  }).status;
 
+describe('block-bypass hook', () => {
   it.each([
     'git commit --no-verify -m x',
     'git push --no-verify',
@@ -127,7 +127,7 @@ describe('block-bypass hook', () => {
     'gh pr edit 3 --add-label guardrails-approved',
     'gh api repos/honerlaw/fencepost/issues/3/labels -f "labels[]=guardrails-approved"',
   ])('blocks %s', (command) => {
-    expect(run(command)).toBe(2);
+    expect(runBlockBypass(command)).toBe(2);
   });
 
   it.each([
@@ -137,6 +137,18 @@ describe('block-bypass hook', () => {
     'gh pr view 3 --json labels',
     'gh pr edit 3 --add-label bug',
   ])('allows %s', (command) => {
-    expect(run(command)).toBe(0);
+    expect(runBlockBypass(command)).toBe(0);
+  });
+});
+
+describe('test-focus scan', () => {
+  it('counts focused and skipped tests', () => {
+    expect(kinds('a.test.ts', "it.only('x', run);\ntest.describe.skip('y', run);")).toEqual({
+      'test-focus-or-skip': 2,
+    });
+  });
+
+  it('ignores other objects with a skip method', () => {
+    expect(kinds('a.test.ts', 'store.skip();\nuseGame.getState().skip();')).toEqual({});
   });
 });

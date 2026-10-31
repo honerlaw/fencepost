@@ -29,8 +29,7 @@ function baseList(base: string): string | undefined {
 }
 
 function main(): void {
-  const base = process.env['BASE_SHA'];
-  const head = process.env['HEAD_SHA'];
+  const { BASE_SHA: base, HEAD_SHA: head, PR_LABELS: prLabels } = process.env;
   if (base === undefined || base === '' || head === undefined || head === '') {
     console.log('guardrail changes: not a pull request');
     return;
@@ -41,7 +40,7 @@ function main(): void {
     return;
   }
   const hits = touched(git('diff', '--name-only', `${base}...${head}`).split('\n').filter(Boolean), parseList(list));
-  const labels: unknown = JSON.parse(process.env['PR_LABELS'] ?? '[]');
+  const labels: unknown = JSON.parse(prLabels ?? '[]');
   const approved = Array.isArray(labels) && labels.includes(LABEL);
   if (hits.length > 0 && !approved) {
     console.error(`These files are guardrails, and this PR has no ${LABEL} label:\n  ${hits.join('\n  ')}`);
@@ -50,4 +49,4 @@ function main(): void {
   console.log(`guardrail changes: ${hits.length} guarded files, label ${approved ? 'present' : 'not needed'}`);
 }
 
-if (process.argv[1]?.endsWith('check-guardrail-changes.ts')) main();
+if (process.argv[1]?.endsWith('check-guardrail-changes.ts') === true) main();

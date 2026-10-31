@@ -19,7 +19,7 @@ function walk(dir: string): string[] {
   });
 }
 
-if (process.argv[1]?.endsWith('check-bundle-secrets.ts')) {
+if (process.argv[1]?.endsWith('check-bundle-secrets.ts') === true) {
   const roots = process.argv.length > 2 ? process.argv.slice(2) : ROOTS;
   const missing = roots.filter((root) => !existsSync(root));
   if (missing.length > 0) {

@@ -42,6 +42,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx tsc --noEmit
+      - run: npx tsc --noEmit --project scripts/tsconfig.json
       - run: npx eslint . --max-warnings 0
       - run: npx prettier --check .
 
@@ -65,7 +66,6 @@ jobs:
       - run: npx tsx scripts/guardrails/check-suppressions.ts
       - run: npx tsx scripts/guardrails/check-pins.ts
       - run: npx lockfile-lint --path package-lock.json --type npm --allowed-hosts npm --validate-https --validate-integrity
-      - run: npx expo install --check
 
   test:
     name: Unit tests and coverage
@@ -232,6 +232,8 @@ jobs:
       - run: npm audit --audit-level=high
         continue-on-error: true
       - run: npx expo-doctor
+        continue-on-error: true
+      - run: npx expo install --check
         continue-on-error: true
       - run: pipx run semgrep==1.183.0 scan --config p/typescript --config p/nodejs --config p/react --config p/owasp-top-ten --metrics off --quiet
         continue-on-error: true

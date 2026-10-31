@@ -29,7 +29,7 @@ export function checkPins(manifest: Manifest): string[] {
   return problems;
 }
 
-if (process.argv[1]?.endsWith('check-pins.ts')) {
+if (process.argv[1]?.endsWith('check-pins.ts') === true) {
   const problems = checkPins(ManifestSchema.parse(JSON.parse(readFileSync('package.json', 'utf8'))));
   if (problems.length > 0) {
     console.error(problems.join('\n'));
