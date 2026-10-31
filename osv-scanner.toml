@@ -1,0 +1,22 @@
+# Exceptions for the advisory osv-scanner step. Each covers one exact version and expires, so the
+# scanner reports the package again rather than staying quiet for good.
+#
+# GHSA-g3hv-75wg-m249 is a denial of service from a crafted glob pattern, and is only fixed in
+# minimatch 11, which removes `makeRe` and changes how some paths match. These two versions are
+# dev-only: ESLint and its plugins, which only see patterns from this repo's own config.
+
+[[PackageOverrides]]
+name = "minimatch"
+version = "3.1.5"
+ecosystem = "npm"
+effectiveUntil = 2027-01-31
+vulnerability.ignore = true
+reason = "Dev-only under ESLint 9, eslint-plugin-import and eslint-plugin-react, which need the v3 API. Patterns come from this repo's config."
+
+[[PackageOverrides]]
+name = "minimatch"
+version = "10.2.6"
+ecosystem = "npm"
+effectiveUntil = 2027-01-31
+vulnerability.ignore = true
+reason = "Dev-only under typescript-eslint, import-x, sonarjs and type-coverage. import-x needs makeRe, removed in v11. Patterns come from this repo's config."

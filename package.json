@@ -96,5 +96,14 @@
     "test:coverage": "vitest run --coverage",
     "prepare": "node -e \"if(process.env.CI||!require('fs').existsSync('.git'))process.exit(0);try{require('child_process').execSync('lefthook install',{stdio:'inherit'})}catch{console.warn('lefthook not installed: skipping git hooks')}\""
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "glob": "14.0.3",
+    "@expo/fingerprint": {
+      "minimatch": "11.0.3"
+    },
+    "@tamagui/static": {
+      "esbuild": "0.28.1"
+    }
+  }
 }
