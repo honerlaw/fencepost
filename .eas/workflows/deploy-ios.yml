@@ -1,0 +1,46 @@
+# Runs on every push to main, which the `main` ruleset only allows after `ci-required` passes on the
+# PR. A native change gets a new TestFlight build; anything else ships as an over-the-air update to
+# the builds with the same fingerprint. Setup and failure recovery are in NOTES.md.
+name: Deploy iOS
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  fingerprint:
+    name: Fingerprint
+    type: fingerprint
+    environment: production
+  get_ios_build:
+    name: Check for an iOS build with this fingerprint
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: ios
+      profile: production
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      # Two quick merges must not start two builds, or publish an update before the build exists.
+      wait_for_in_progress: true
+  build_ios:
+    name: Build iOS
+    needs: [get_ios_build]
+    if: ${{ !needs.get_ios_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: production
+  testflight_ios:
+    name: Upload to TestFlight
+    needs: [build_ios]
+    type: testflight
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+  update_ios:
+    name: Publish iOS update
+    needs: [get_ios_build]
+    if: ${{ needs.get_ios_build.outputs.build_id }}
+    type: update
+    params:
+      branch: production
+      platform: ios
