@@ -44,7 +44,7 @@ export function centeredMark(size: number, fraction: number, inks: Inks): string
 }
 
 /** How much of the tile the mark's box takes up; the rest is board. */
-export const TILE_FRACTION = 0.56;
+export const TILE_FRACTION = 0.59;
 
 /** A solid board with the mark on it: the app icon and the favicon. */
 export function tile(size: number, board: string, inks: Inks, cornerRadius: number): string {
