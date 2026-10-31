@@ -22,3 +22,16 @@ No CI job compiles native code, so this is the only blocking gate that catches a
 - The blocking check does not see recommendations Expo published after the installed map shipped, remote-only entries (`expo`, which supplies the map, plus `typescript` and `@types/react`), or remote overrides that differ without being newer (`react-native-web`). The advisory online check covers these.
 - Direct dependencies outside the map and all transitive native modules go unchecked, and no CI job compiles native code, so a native compile failure can still merge. Layer 5 defines the build gate as exports.
 - All advisory scans share one job, and any of them can turn it red. `npm audit` no longer does at the high threshold: after the Expo bump it reports no high findings. The run still passes because of `continue-on-error`, so no failure notification is expected (not observed). The job is a report someone must choose to read. The PR body reports what the first run showed.
+
+## 2026-10-31: guard `main` with a repository ruleset, not classic branch protection
+
+### Original plan
+Layer 6 and criterion 8 used classic branch protection, applied by this run after the owner's confirmation, with a choice about `enforce_admins`.
+
+### What changed
+The owner asked for a ruleset instead, and to configure it themselves. A ruleset named `main` already existed (id 26272396).
+
+### New plan
+- Criterion 8 is met when the ruleset requires a pull request and `ci-required` from GitHub Actions (integration id 15368), verified with `gh api`. It is reported unmet until the owner adds the check.
+- Break-glass is the ruleset's Enforcement status, in AGENTS.md. An empty bypass list binds admins, so there is no `enforce_admins` choice.
+

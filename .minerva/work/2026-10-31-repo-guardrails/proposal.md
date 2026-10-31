@@ -33,13 +33,13 @@ tsconfig adds noUncheckedIndexedAccess, exactOptionalPropertyTypes, noImplicitOv
 ### Layer 2: ESLint (`--max-warnings 0`, unused disable directives are errors)
 - eslint-config-expo/flat stays the base.
 - `@onerlaw/agentic-eslint-plugin`, one block per rule: no-credential-in-url and no-biome-ignore everywhere, one-export-per-file in `src` except routes and tests, tamagui-native-id in `src` TSX, responsive-two-pane-flex in components and routes. The other rules do not apply here and are documented in the config and `negative-controls.md`.
-- typescript-eslint strictTypeChecked and stylisticTypeChecked, sonarjs, security, no-unsanitized, regexp, unicorn 65, import-x, promise, eslint-comments, @vitest/eslint-plugin, eslint-plugin-playwright, react-you-might-not-need-an-effect.
+- typescript-eslint strictTypeChecked and stylisticTypeChecked, sonarjs, security, no-unsanitized, regexp, unicorn 65, import-x (cycles and unresolved imports are covered by dependency-cruiser and `import/no-unresolved`, not import-x), promise, eslint-comments, @vitest/eslint-plugin, eslint-plugin-playwright, react-you-might-not-need-an-effect.
 - eslint-plugin-vibe-proof 1.10.0, exact pin, after a source review (MIT, no install scripts, no network, exec or eval), with a curated rule list.
 - Project bans in `no-restricted-imports` and `no-restricted-syntax`: the pure core has no framework imports, clock or randomness; client code cannot import server code; `process.env` only in `src/server/from-env/`; no cast `JSON.parse`; no relative `fetch`.
 
 ### Layer 3: standalone quality tools
-prettier (repo reformatted once), knip, dependency-cruiser, jscpd (3%), type-coverage (99%), vitest coverage floors (statements 90, branches 84, functions 87, lines 93), lockfile-lint, and `expo install --check`. See replan.md: the blocking form runs offline against the lockfile-pinned map, and the online form is advisory. `scripts/guardrails/` holds:
-- check-suppressions: a token walk budgets disable comments, `as` casts, non-null `!` and focused or skipped tests against `suppressions.json` (12 entries).
+prettier (repo reformatted once), knip, dependency-cruiser, jscpd (threshold 0, measured 0.00%, which reliably catches whole-file copies only), type-coverage (99%), vitest coverage floors (statements 90, branches 84, functions 87, lines 93), lockfile-lint, and `expo install --check`. See replan.md: the blocking form runs offline against the lockfile-pinned map, and the online form is advisory. `scripts/guardrails/` holds:
+- check-suppressions: a token walk budgets disable comments, `as` casts, non-null `!` and focused or skipped tests against `suppressions.json` (12 entries). Casts and `!` in test files are exempt.
 - check-pins: Tamagui stays exactly 2.7.7, and `expo.install.exclude` is rejected.
 - check-bundle-secrets: scans web and native exports for key names and key shapes.
 - check-guardrail-changes (CI only): a PR touching a path in `.github/guardrail-paths.txt` needs the `guardrails-approved` label. It passes when the base has no path list, so this PR is exempt, and it fails on an unknown base. Renames are seen as a delete plus an add.
@@ -47,7 +47,7 @@ prettier (repo reformatted once), knip, dependency-cruiser, jscpd (3%), type-cov
 `npm run guard` runs Layers 1-3 and the build exports to the end. `npm run guard:security` runs gitleaks and semgrep.
 
 ### Layer 4: security tooling
-Blocking: gitleaks (checksum-pinned binary, full history), semgrep with `.semgrep/` rules, CodeQL with a SARIF gate (the analyze step cannot fail on a finding by itself), dependency-review failing on moderate or higher in runtime and development scopes, zizmor, actionlint, hadolint.
+Blocking: gitleaks (checksum-pinned binary, full history), semgrep with `.semgrep/` rules, CodeQL with a SARIF gate (the analyze step cannot fail on a finding by itself; rules are read from driver and extensions, and a SARIF with no rules fails), dependency-review failing on moderate or higher in runtime and development scopes, zizmor, actionlint, hadolint.
 Advisory, in one job with `continue-on-error`, on PRs and weekly: osv-scanner, npm audit, expo-doctor, online `expo install --check`, semgrep registry packs.
 
 ### Layer 5: build gate

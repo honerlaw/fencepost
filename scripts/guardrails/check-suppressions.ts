@@ -22,12 +22,13 @@ const COMMENT_KINDS: [string, RegExp][] = [
 const isTest = (file: string) => /\.(?:test|spec)\.tsx?$/.test(file) || file.startsWith('e2e/');
 const isAstScanned = (file: string) => /\.(?:ts|tsx|mts|cts)$/.test(file);
 
+const FOCUS_OR_SKIP = new Set(['only', 'skip', 'skipIf', 'runIf', 'todo', 'fixme']);
+
+/** Only a plain dotted callee counts: `it.skip.each([1])('a', f)` has two calls, and the outer one is not new. */
 function isFocusOrSkip(callee: string): boolean {
-  const parts = callee.split('.');
-  return (
-    ['it', 'test', 'describe'].includes(parts[0] ?? '') &&
-    ['only', 'skip', 'todo', 'fixme'].includes(parts.at(-1) ?? '')
-  );
+  if (!/^[\w.]+$/.test(callee)) return false;
+  const [root, ...rest] = callee.split('.');
+  return ['it', 'test', 'describe'].includes(root ?? '') && rest.some((name) => FOCUS_OR_SKIP.has(name));
 }
 
 function scriptKind(file: string): ts.ScriptKind {
@@ -116,12 +117,7 @@ function main(): void {
     encoding: 'utf8',
   })
     .split('\0')
-    .filter(
-      (file) =>
-        /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(file) &&
-        !file.startsWith('scripts/guardrails/') &&
-        existsSync(file),
-    );
+    .filter((file) => /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(file) && existsSync(file));
   const found = new Map<string, Map<string, number>>();
   for (const file of files) {
     const counts = scan(file, readFileSync(file, 'utf8'));

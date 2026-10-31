@@ -205,6 +205,12 @@ describe('test-focus scan', () => {
     });
   });
 
+  it('counts conditional skips and skips in a chain once each', () => {
+    const text =
+      "it.skipIf(true)('a', run);\nit.runIf(false)('b', run);\nit.skip.each([1])('c', run);\nit.only.each([1])('d', run);";
+    expect(kinds('a.test.ts', text)).toEqual({ 'test-focus-or-skip': 4 });
+  });
+
   it('ignores other objects with a skip method', () => {
     expect(kinds('a.test.ts', 'store.skip();\nuseGame.getState().skip();')).toEqual({});
   });

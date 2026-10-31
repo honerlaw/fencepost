@@ -25,7 +25,7 @@ Each gate was given a deliberate violation, run, and required to fail. Fixtures 
 | depcruise pure-core | src/game imports react | caught | pure-core-stays-pure |
 | depcruise client-server | component imports server | caught | client-never-imports-server |
 | depcruise cycle | two modules import each other | caught | no-circular |
-| jscpd | copied file | caught | Found 1 clones |
+| jscpd | whole-file copy | caught | exit 1. The first record cited only `Found 1 clones`, which alone does not prove a failure: at the old 3% threshold a smaller paste printed that and exited 0. |
 | type-coverage | any-typed exports | caught | less |
 | suppressions | unbudgeted cast | caught | out of budget |
 | check-pins | caret on tamagui | caught | tamagui must stay exactly 2.7.7, found ^2.7.7 |
@@ -63,7 +63,20 @@ Added after review:
 | semgrep | `child_process` without `node:`; `generateText(opts)` | caught | `no-child-process-in-app`, `stream-text-needs-limits` |
 | eslint env ban | `const { env } = process` | caught | `Read env only` |
 
-CodeQL's real run, and `dependency-review`, are proven on the PR.
+Added after the second review and verification:
+
+| Gate | Violation | Result | Evidence |
+| --- | --- | --- | --- |
+| check-suppressions | quoted rule name, JSDoc directive, JSX text, `it.skipIf`, `it.runIf`, `it.skip.each`, `it.only.each` | caught | unit tests in `guardrails.test.ts` |
+| check-suppressions | `@ts-expect-error` and casts in `scripts/guardrails/` | caught | exit 1, `1 ts-ignore, budget 0` |
+| check-codeql.sh | rule under `tool.driver`, under an extension, `rule.id` result, SARIF with no rules | caught | exit 1 for each; exit 0 for clean and suppressed fixtures |
+| check-bundle-secrets | `desk-or-mobile-layout-container` must not match | passes | unit test |
+| semgrep | `ai.streamText` | caught | `stream-text-needs-limits` |
+| eslint env ban | `globalThis.process.env` | caught | `Read env only` |
+| lint hook | `any` cast in this repo, then a foreign repo with a fake eslint | caught | exit 2 here; exit 0 and the foreign eslint did not run |
+| jscpd partial paste | 12, 21, 40 and 120 lines of `game-store.ts` | **missed** | `Found 0 clones`, exit 0, also at `--mode weak` and `--min-tokens 30`. Cause not found. Recorded as a limit. |
+
+CodeQL's real run, and `dependency-review`, have no failing control locally. A green run does not prove they can fail, so both get a planted failure on the PR.
 
 The Claude Code hooks are covered by `scripts/guardrails/guardrails.test.ts` (block-bypass) and a pipe test of `lint-edited-file.mjs`: exit 0 on a clean file, exit 2 with the report on a dirty one.
 

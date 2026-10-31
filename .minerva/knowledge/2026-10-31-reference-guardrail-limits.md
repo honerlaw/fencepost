@@ -3,7 +3,7 @@
 **Date**: 2026-10-31
 **Type**: reference
 **Theme**: guardrails
-**Summary**: Guardrail gaps: PR-run scripts can bypass checks, no native compile, advisory scans unread.
+**Summary**: Guardrail gaps: PR-run scripts can bypass checks, no native compile, partial copy-paste unseen.
 **Context**: .minerva/work/2026-10-31-repo-guardrails (see git history if the worktree has been cleaned up)
 
 ## Context
@@ -16,6 +16,8 @@ The guardrails are strict, and it is easy to read a green `ci-required` as proof
 - **The advisory job is a report.** It cannot block, and it passes the run through `continue-on-error`, so someone has to read it.
 - **Semgrep matches by name.** `stream-text-needs-limits` catches `streamText` and `$AI.streamText`, but not a named import under an alias.
 - **`package.json` is not a guarded path.** CI calls tools directly for this reason, so gutting an npm script cannot weaken a gate.
+- **jscpd catches whole-file copies, not reliably partial ones.** The threshold is 0 and the measured duplication is 0.00%, yet pastes of 12 to 120 lines of \`src/store/game-store.ts\` gave \`Found 0 clones\`, also at \`--min-tokens 30\`. Other partial copies were found. The cause is unknown. Test files are ignored.
+- **Casts in tests are not budgeted.** \`as\` and \`!\` count only outside test files, because a bad one fails its test. Focused and skipped tests are counted everywhere.
 - **No mutation testing.** Stryker was not added, so coverage shows lines ran, not that tests would fail if the code broke.
 - **Dependabot npm PRs need a repo setting.** `.github/dependabot.yml` allows only security updates, and none open unless Dependabot security updates are on.
 
