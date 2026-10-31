@@ -1,0 +1,13 @@
+.expo
+.minerva
+.tamagui
+coverage
+dist
+dist-native
+node_modules
+package-lock.json
+playwright-report
+reports
+test-results
+*.md
+*.snap
