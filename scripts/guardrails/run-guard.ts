@@ -2,7 +2,7 @@
 // `guard:security` (gitleaks, semgrep) is separate because it needs tools outside node_modules.
 import { spawnSync } from 'node:child_process';
 
-const CHECKS: [string, string][] = [
+const CHECKS: [string, string, Record<string, string>?][] = [
   ['types', 'tsc --noEmit'],
   ['script types', 'tsc --noEmit --project scripts/tsconfig.json'],
   ['lint', 'eslint . --max-warnings 0'],
@@ -17,6 +17,8 @@ const CHECKS: [string, string][] = [
     'lockfile',
     'lockfile-lint --path package-lock.json --type npm --allowed-hosts npm --validate-https --validate-integrity',
   ],
+  // Offline, this compares with the SDK map the lockfile pins, so the result depends only on the commit.
+  ['expo versions', 'expo install --check --json', { EXPO_OFFLINE: '1' }],
   ['tests + coverage', 'vitest run --coverage'],
   ['web export', 'expo export --platform web'],
   ['native export', 'expo export --platform ios --platform android --output-dir dist-native'],
@@ -24,9 +26,9 @@ const CHECKS: [string, string][] = [
 ];
 
 const failed: string[] = [];
-for (const [name, command] of CHECKS) {
+for (const [name, command, env] of CHECKS) {
   console.log(`\n=== ${name}: ${command}`);
-  const { status } = spawnSync(`npx ${command}`, { stdio: 'inherit', shell: true });
+  const { status } = spawnSync(`npx ${command}`, { stdio: 'inherit', shell: true, env: { ...process.env, ...env } });
   if (status !== 0) failed.push(name);
 }
 

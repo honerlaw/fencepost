@@ -66,6 +66,11 @@ jobs:
       - run: npx type-coverage --strict --ignore-catch --at-least 99 --ignore-files '**/*.d.ts'
       - run: npx tsx scripts/guardrails/check-suppressions.ts
       - run: npx tsx scripts/guardrails/check-pins.ts
+      # Offline, this compares with the SDK map the lockfile pins, so the result depends only on the
+      # commit. The online form, which also moves with Expo's releases, is in the advisory job.
+      - run: npx expo install --check --json
+        env:
+          EXPO_OFFLINE: '1'
       - run: npx lockfile-lint --path package-lock.json --type npm --allowed-hosts npm --validate-https --validate-integrity
 
   test:

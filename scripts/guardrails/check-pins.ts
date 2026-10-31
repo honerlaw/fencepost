@@ -6,6 +6,7 @@ import { z } from 'zod';
 const ManifestSchema = z.object({
   dependencies: z.record(z.string(), z.string()).optional(),
   devDependencies: z.record(z.string(), z.string()).optional(),
+  expo: z.object({ install: z.object({ exclude: z.array(z.string()).optional() }).optional() }).optional(),
 });
 type Manifest = z.infer<typeof ManifestSchema>;
 
@@ -25,6 +26,9 @@ export function checkPins(manifest: Manifest): string[] {
   }
   for (const [name, spec] of Object.entries(all)) {
     if (NON_REGISTRY.test(spec)) problems.push(`${name} must come from the npm registry, found ${spec}`);
+  }
+  if ((manifest.expo?.install?.exclude ?? []).length > 0) {
+    problems.push('expo.install.exclude hides packages from the Expo version check');
   }
   return problems;
 }

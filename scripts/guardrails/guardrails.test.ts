@@ -106,6 +106,13 @@ describe('scan parsing', () => {
   });
 });
 
+describe('checkPins exclusions', () => {
+  it('rejects packages hidden from the Expo version check', () => {
+    const dependencies = { tamagui: '2.7.7', '@tamagui/config': '2.7.7', '@tamagui/metro-plugin': '2.7.7' };
+    expect(checkPins({ dependencies, expo: { install: { exclude: ['expo-sqlite'] } } })).toHaveLength(1);
+  });
+});
+
 describe('findLeaks', () => {
   it('finds the prompt and any mention of OpenRouter, in any case', () => {
     expect(findLeaks([{ name: 'a', text: 'x OpenRouter y' }])).toHaveLength(1);
