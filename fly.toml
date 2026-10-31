@@ -1,4 +1,4 @@
-# Fly.io config (handoff §15). Deploying is a user-run step; see NOTES.md.
+# Fly.io config (handoff §15). `.github/workflows/deploy-server.yml` deploys it on each merge to main; see NOTES.md.
 app = "fencepost"
 primary_region = "iad"
 
@@ -12,7 +12,7 @@ primary_region = "iad"
   auto_stop_machines = "stop"
   auto_start_machines = true
   # A floor, not a cap: the in-memory rate limiter needs exactly one machine, which
-  # `fly deploy --ha=false` and `fly scale count 1` enforce (see NOTES.md, step 3).
+  # `fly deploy --ha=false` and `fly scale count 1` enforce (see NOTES.md, "Deploying the server").
   min_machines_running = 1
 
   [[http_service.checks]]
@@ -21,3 +21,8 @@ primary_region = "iad"
     method = "GET"
     path = "/api/health"
     timeout = "5s"
+
+# The default is 256 MB, and the server idles near 160 MB before any card batch streams.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

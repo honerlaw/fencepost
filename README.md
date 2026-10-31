@@ -2,7 +2,7 @@
 
 A doomscroll feed of tap-to-answer logic puzzles for senior engineers, on a whiteboard (light) or chalkboard (dark). Five card types: spot the flaw, break it, trace it, pick the design, and order the steps. It ships with a 6-card starter deck. After that, a small stateless server writes cards live with an AI model and streams them to the app as NDJSON.
 
-> **Not production-ready yet.** Nothing is deployed and no release build has been tested. Generated cards use `anthropic/claude-sonnet-5.5`, chosen after a hand-checked eval of 50 cards found no wrong answers, but that sample is small, so keep spot-checking cards. Cards also take about 40 s to start arriving. See [NOTES.md](NOTES.md).
+> **Not production-ready yet.** The server deploys on merge to `main`, but no release build has been tested against it. Generated cards use `anthropic/claude-sonnet-5.5`, chosen after a hand-checked eval of 50 cards found no wrong answers, but that sample is small, so keep spot-checking cards. Cards also take about 40 s to start arriving. See [NOTES.md](NOTES.md).
 
 ## Run the app
 
@@ -46,7 +46,7 @@ OPENROUTER_BASE_URL=http://127.0.0.1:8790/api/v1 OPENROUTER_API_KEY=stub CARD_MO
 curl -N -X POST localhost:8080/api/cards -H 'content-type: application/json' -d '{"deviceId":"local-device-1"}'
 ```
 
-Docker (the same image Fly would run):
+Docker (the same image Fly runs):
 
 ```bash
 docker build -t fencepost .
@@ -69,7 +69,7 @@ npm run cards:eval -- --model <id> --batches 5   # real model, spends OpenRouter
 - `src/game/` and `src/cards/` are pure TypeScript: the rules, serve order, rematches, streaks, scoring and `normalize`, plus the starter deck.
 - `src/server/` is server-only: the prompt, plan, rate limits, validation, card source and handlers. It is imported only by `+api.ts` files.
 - `src/components/`, `src/store/` and `src/lib/` are the UI, the persisted zustand store, and the NDJSON client.
-- `server.js`, `Dockerfile` and `fly.toml` are the server's deploy files. Deploying the server is a manual step (see NOTES.md).
+- `server.js`, `Dockerfile` and `fly.toml` are the server's deploy files. `.github/workflows/deploy-server.yml` deploys the server to Fly on each merge to `main`, once the one-time setup in NOTES.md is done.
 - `.eas/workflows/deploy-ios.yml` ships iOS to TestFlight or over the air on each merge to `main`, once the one-time setup in NOTES.md is done.
 
 ## Theme and brand
