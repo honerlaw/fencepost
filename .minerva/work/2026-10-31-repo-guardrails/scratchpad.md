@@ -39,6 +39,9 @@
 - [panel, 3/3 accept, 3 with fixes] replan: blocking offline check plus advisory online check. All fixes folded into replan.md. Bump given a disposition: done in this unit.
 - [solo] triage of the first code review: every confirmed finding FIX, including the low ones, because each was small. Two items need the user: Dependabot security updates are off for the repo, and the dependency graph may be off.
 
+- [user-directed] branch protection: the user wants a repository ruleset rather than classic branch protection, and to configure it themselves. A ruleset named `main` already exists (id 26272396: default branch, no bypass, deletion and non_fast_forward). The user adds the pull_request and required_status_checks rules. Criterion 8 is met by the ruleset, verified with `gh api`. No enforce_admins choice remains: an empty bypass list binds admins too.
+- [user-directed] dependency graph enabled with `PUT repos/honerlaw/fencepost/vulnerability-alerts`, which also turns on Dependabot alerts. `dependency-graph/compare` now returns 200. Dependabot security updates are still off.
+
 ## Review triage 2026-10-31
 
 1. check-suppressions misses comments after a template literal: FIX, walks parsed tokens.

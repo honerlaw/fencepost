@@ -55,12 +55,9 @@ Every PR must pass the `ci-required` check before it can merge. It fails unless 
 - Never skip the git hooks. Do not use `--no-verify` or set `LEFTHOOK=0`.
 - Do not rename `ci-required`, or add path filters or a job-level `if:` that skips it. Branch protection waits on that exact name, so a PR would hang forever on a check that never reports.
 
-If CI itself is broken and `main` needs a fix, the repo owner can lift admin enforcement, merge, and restore it:
+If CI itself is broken and `main` needs a fix, the repo owner sets the `main` ruleset to Disabled, merges the fix, and sets it back to Active: **Settings > Rules > Rulesets > main > Enforcement status**. Nobody is on its bypass list, so this is the only way around the check, and it shows up in the repository's rule insights.
 
-```sh
-gh api -X DELETE repos/honerlaw/fencepost/branches/main/protection/enforce_admins
-gh api -X POST repos/honerlaw/fencepost/branches/main/protection/enforce_admins
-```
+`gh ruleset check main` shows which rules apply to `main`.
 
 ## minerva
 
