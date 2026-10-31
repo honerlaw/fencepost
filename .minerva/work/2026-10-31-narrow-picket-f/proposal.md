@@ -1,7 +1,7 @@
 # Proposal: narrow-picket-f
 
 **Date**: 2026-10-31
-**Status**: Draft
+**Status**: Shipped (2026-10-31)
 
 ## Goal
 Narrow the Fencepost "Picket F" mark: slightly taller and skinnier, using candidate A the user picked from a preview. Every surface that shows the mark (iOS Icon Composer bundle, `icon.png`, favicon, Android adaptive foreground and monochrome, both splashes, the brand SVGs, the in-app `BrandMark`) carries the new proportions.
@@ -16,16 +16,19 @@ Facts verified at intake:
 - Memory says to ask before pushing. The user invoked the auto orchestrator, whose ship phase pushes and opens a PR. That invocation is the authorization for this run.
 
 ## Approach
-1. In `src/theme/brand-mark.ts`, replace the geometry with candidate A:
+One unit, one PR. What shipped:
+
+1. `src/theme/brand-mark.ts` holds candidate A:
    - `bounds`: `{ x: 322, y: 212, width: 396, height: 600 }` (was 300, 228, 440, 568)
    - `picket`: `M322 288 L380 212 L438 288 V772 a40 40 0 0 1 -40 40 H362 a40 40 0 0 1 -40 -40 Z` (stem 116, was 128; cap slope kept; foot radius 40, was 44)
    - `topRail`: `{ x: 322, y: 347, width: 396, height: 88, radius: 44 }`
    - `accentRail`: `{ x: 380, y: 550, width: 266, height: 88, radius: 44 }` (visible end at 646; the cap sits behind the picket so no blue fringes the post's left edge)
    The box keeps its center at (520, 512).
-2. Raise the fractions so the scale stays about the same and the extra height shows: `TILE_FRACTION` 0.56 to 0.59 (`scripts/brand/svg.ts`), `SPLASH_FRACTION` 0.8 to 0.845 and `FOREGROUND_FRACTION` 0.47 to 0.5 (`scripts/brand/targets.ts`). Update "440 by 568 units" in the comment above `FOREGROUND_FRACTION`. Its "359 units" stays true.
-3. Run `npm run brand:render` and commit every regenerated asset. The Icon Composer layers use no fraction, so their mark goes from 55.5% to 58.6% of the canvas, in line with `icon.png` at 0.59.
+2. The fractions rose so the scale stays about the same and the extra height shows: `TILE_FRACTION` 0.56 to 0.59 (`scripts/brand/svg.ts`), `SPLASH_FRACTION` 0.8 to 0.845 and `FOREGROUND_FRACTION` 0.47 to 0.5 (`scripts/brand/targets.ts`). The comment above `FOREGROUND_FRACTION` now says 396 by 600 units; its "359 units" stayed true.
+3. `npm run brand:render` regenerated every asset. The Icon Composer layers use no fraction, so their mark goes from 55.5% to 58.6% of the canvas, in line with `icon.png` at 0.59.
 4. `BrandMark` stays at `size={28}`. Its square crop fits the height, so in-app the mark gets narrower, not taller. This is deliberate.
-5. Verify the iOS bundle per `2026-10-31-constraint-icon-composer-layers-are-listed-front-to-back`: throwaway prebuild, `xcrun actool`, view the compiled PNG, delete the generated output.
+5. The iOS bundle was checked per `2026-10-31-constraint-icon-composer-layers-are-listed-front-to-back`, compiled with `xcrun actool` in a scratch asset catalog because the throwaway prebuild was denied at the permission prompt. The compiled `fencepost60x60@2x.png` was viewed before and after the rail fix.
+6. Code review found a one-pixel blue fringe on the post's left edge on `icon.png`, so the accent rail now starts under the post (Approach 1). The visible rail is unchanged.
 
 ### Candidates considered
 - **A (picked). Edit the constants and round the fractions.** Smallest change; uses the documented path for changing the mark.
