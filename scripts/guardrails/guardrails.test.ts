@@ -98,6 +98,20 @@ describe('scan parsing', () => {
     expect(kinds('a.ts', '/* eslint no-console: off */\nconsole.log(1);')).toEqual({ 'eslint-config': 1 });
   });
 
+  it('finds inline rule config with quoted names', () => {
+    expect(kinds('a.ts', '/* eslint "no-console": "off" */\nconsole.log(1);')).toEqual({ 'eslint-config': 1 });
+  });
+
+  it('counts a directive in JSDoc once', () => {
+    expect(kinds('a.ts', '/**\n * @example // eslint-disable-next-line foo\n */\nconst a = 1;')).toEqual({
+      'eslint-disable': 1,
+    });
+  });
+
+  it('does not read JSX text as a comment', () => {
+    expect(kinds('a.tsx', 'const a = <b>// eslint-disable-line</b>;')).toEqual({});
+  });
+
   it('parses a generic arrow in a .ts file as TypeScript', () => {
     expect(kinds('a.ts', 'const f = <T>(x: T) => x;\nconst a = b as Foo;\nconst c = d!;')).toEqual({
       'as-cast': 1,
@@ -128,6 +142,10 @@ describe('findLeaks', () => {
 
   it('finds a key with no version segment', () => {
     expect(findLeaks([{ name: 'a', text: ['sk', 'or', 'Ab12'.repeat(8)].join('-') }])).toHaveLength(1);
+  });
+
+  it('does not mistake words ending in sk for a key', () => {
+    expect(findLeaks([{ name: 'a', text: 'desk-or-mobile-layout-container' }])).toEqual([]);
   });
 
   it('passes clean text', () => {

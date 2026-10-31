@@ -59,3 +59,20 @@
 13. Bundle regex too narrow: FIX.
 14. Lint hook root: FIX, root comes from the edited file.
 15. check-guardrail-changes failed open on an unknown base (from the Verifier): FIX, `ls-tree` throws.
+
+## Review triage 2026-10-31 (second code review)
+
+- [solo] triage: every confirmed finding FIX, because each was small.
+
+1. Quoted rule names in inline `eslint` config comments escaped the budget: FIX, regex allows quotes, test added.
+2. CodeQL gate ignored suppressions, so a false positive would block every PR: FIX, suppressed results are skipped. The jq filter is tested on a fixture; whether a `codeql[...]` comment reaches SARIF is proven only by a real run, added to the planted-failure control. The budget now counts `codeql[` comments.
+3. `git diff --name-only` quoted non-ASCII paths: FIX, `-z`.
+4. `ls-files` quoting, and `.jsx` and `.cts` skipped: FIX, `-z`, wider filter.
+5. Deleted tracked file crashed the scan: FIX, missing files are skipped.
+6. JSDoc counted twice: FIX, the walk stops at JSDoc nodes, test added.
+7. JSX text read as a comment: FIX, ranges inside JSX text are dropped, test added.
+8. Semgrep missed `ai.streamText`: FIX. Aliased named imports remain uncovered, as with any pattern rule.
+9. Bundle regex had no left boundary: FIX, `\b`, test added.
+10. Lint hook ran eslint from any repo holding the file: FIX, the root must share this repo's git common dir. Control: a foreign repo's eslint did not run.
+11. `globalThis.process.env` passed the ban: FIX, selector widened, control ran.
+

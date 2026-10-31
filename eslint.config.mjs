@@ -29,7 +29,7 @@ const E2E = ['e2e/**/*.ts'];
 // Bans shared by every layer of src/. `no-restricted-syntax` does not merge across blocks, so each
 // block that adds a selector spreads this list.
 const NO_PROCESS_ENV = {
-  selector: "MemberExpression[object.name='process'][property.name='env']",
+  selector: "MemberExpression[property.name='env']:matches([object.name='process'], [object.property.name='process'])",
   message: 'Read env only in src/server/from-env/, which keeps secrets out of the client bundle.',
 };
 const NO_PROCESS_ALIAS = {

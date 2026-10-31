@@ -44,6 +44,7 @@ rules:
     patterns:
       - pattern-either:
           - pattern: streamText(...)
+          - pattern: $AI.streamText(...)
           - pattern: streamObject(...)
           - pattern: generateText(...)
           - pattern: generateObject(...)

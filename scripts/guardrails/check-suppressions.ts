@@ -1,7 +1,7 @@
 // Every way of silencing a gate has to be on a checked-in list with a reason, so turning a check
 // off shows up in the diff. The budget is exact: an entry that outlives its code fails too.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { z } from 'zod';
 
@@ -12,15 +12,15 @@ export type Budget = z.infer<typeof BudgetsSchema>[number];
 
 const COMMENT_KINDS: [string, RegExp][] = [
   ['eslint-disable', /eslint-(?:disable|enable)/],
-  ['eslint-config', /^[/*\s]*eslint\s+[\w@/-]+\s*:/],
+  ['eslint-config', /^[/*\s]*eslint\s+["']?[\w@/-]+["']?\s*:/],
   ['ts-ignore', /@ts-(ignore|expect-error|nocheck)/],
   ['coverage-ignore', /(istanbul|v8|c8) ignore/],
   ['prettier-ignore', /prettier-ignore/],
-  ['scanner-ignore', /nosemgrep|gitleaks:allow|lgtm\[/],
+  ['scanner-ignore', /nosemgrep|gitleaks:allow|lgtm\[|codeql\[/],
 ];
 
 const isTest = (file: string) => /\.(?:test|spec)\.tsx?$/.test(file) || file.startsWith('e2e/');
-const isAstScanned = (file: string) => /\.(?:ts|tsx|mts)$/.test(file);
+const isAstScanned = (file: string) => /\.(?:ts|tsx|mts|cts)$/.test(file);
 
 function isFocusOrSkip(callee: string): boolean {
   const parts = callee.split('.');
@@ -41,24 +41,25 @@ const parse = (file: string, text: string) =>
 /** Walks real tokens, because a bare scanner loses its place at the first `${}` and misses what follows. */
 function commentHits(source: ts.SourceFile): string[] {
   const text = source.getFullText();
-  const seen = new Set<number>();
-  const hits: string[] = [];
+  const comments = new Map<number, number>();
+  const jsxText: ts.Node[] = [];
   const visit = (node: ts.Node): void => {
-    if (node.kind === ts.SyntaxKind.JsxText) return;
+    if (ts.isJSDoc(node)) return;
+    if (node.kind === ts.SyntaxKind.JsxText) jsxText.push(node);
     const ranges = [
       ...(ts.getLeadingCommentRanges(text, node.getFullStart()) ?? []),
       ...(ts.getTrailingCommentRanges(text, node.getEnd()) ?? []),
     ];
-    for (const { pos, end } of ranges) {
-      if (seen.has(pos)) continue;
-      seen.add(pos);
-      const comment = text.slice(pos, end);
-      for (const [kind, pattern] of COMMENT_KINDS) if (pattern.test(comment)) hits.push(kind);
-    }
+    for (const { pos, end } of ranges) comments.set(pos, end);
     for (const child of node.getChildren(source)) visit(child);
   };
   visit(source);
-  return hits;
+  const isJsxText = (pos: number) => jsxText.some((node) => pos >= node.getFullStart() && pos < node.getEnd());
+  return [...comments]
+    .filter(([pos]) => !isJsxText(pos))
+    .flatMap(([pos, end]) =>
+      COMMENT_KINDS.filter(([, pattern]) => pattern.test(text.slice(pos, end))).map(([kind]) => kind),
+    );
 }
 
 function astHits(source: ts.SourceFile): string[] {
@@ -111,9 +112,16 @@ export function compare(found: Map<string, Map<string, number>>, budgets: Budget
 }
 
 function main(): void {
-  const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8' })
-    .split('\n')
-    .filter((file) => /\.(?:ts|tsx|mts|js|mjs|cjs)$/.test(file) && !file.startsWith('scripts/guardrails/'));
+  const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+    encoding: 'utf8',
+  })
+    .split('\0')
+    .filter(
+      (file) =>
+        /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(file) &&
+        !file.startsWith('scripts/guardrails/') &&
+        existsSync(file),
+    );
   const found = new Map<string, Map<string, number>>();
   for (const file of files) {
     const counts = scan(file, readFileSync(file, 'utf8'));

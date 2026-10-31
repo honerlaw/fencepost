@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # CodeQL's analyze step only uploads results, so a finding alone would leave the job green. This
-# fails on any security result rated medium or higher (a security-severity of 4.0 or more).
+# fails on any security result rated medium or higher (a security-severity of 4.0 or more). A false
+# positive takes a `codeql[...]` comment with an entry in scripts/guardrails/suppressions.json:
+# dismissing an alert in the UI cannot help, because this reads the SARIF from this run.
 set -euo pipefail
 
 findings="$(jq -r '
@@ -10,6 +12,7 @@ findings="$(jq -r '
       | .id]) as $ids
   | .results[]
   | select(.ruleId as $id | $ids | index($id))
+  | select((.suppressions // []) | length == 0)
   | "\(.ruleId): \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)"
 ' "$1"/*.sarif)"
 

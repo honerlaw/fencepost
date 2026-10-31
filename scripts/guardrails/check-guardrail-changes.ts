@@ -39,7 +39,7 @@ function main(): void {
     return;
   }
   const hits = touched(
-    git('diff', '--name-only', '--no-renames', `${base}...${head}`).split('\n').filter(Boolean),
+    git('diff', '--name-only', '--no-renames', '-z', `${base}...${head}`).split('\0').filter(Boolean),
     parseList(list),
   );
   const labels: unknown = JSON.parse(prLabels ?? '[]');
