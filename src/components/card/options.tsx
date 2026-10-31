@@ -10,47 +10,60 @@ interface OptionsProps {
   reveal: { answer: number; picked: number } | null;
 }
 
-export function Options({ options, onPick, reveal }: OptionsProps) {
+type Mark = 'idle' | 'right' | 'wrong';
+
+const MARK_STYLE = {
+  idle: { border: '$rule', bg: '$card', disc: '$wash' },
+  right: { border: '$green', bg: '$greenWash', disc: '$green' },
+  wrong: { border: '$red', bg: '$redWash', disc: '$red' },
+} as const;
+
+function markFor(i: number, reveal: OptionsProps['reveal']): Mark {
+  if (reveal == null) return 'idle';
+  if (i === reveal.answer) return 'right';
+  return i === reveal.picked ? 'wrong' : 'idle';
+}
+
+function OptionRow({ letter, text, mark }: Readonly<{ letter: string | undefined; text: string; mark: Mark }>) {
+  const style = MARK_STYLE[mark];
+  const glyph = { idle: letter, right: '✓', wrong: '✗' }[mark];
+  const marked = mark !== 'idle';
+  const wrong = mark === 'wrong';
+  return (
+    <XStack
+      gap="$3"
+      items="center"
+      p="$3"
+      minH={48}
+      rounded="$3"
+      borderWidth={marked ? 2 : 1}
+      borderColor={style.border}
+      bg={style.bg}
+    >
+      <YStack width={26} height={26} rounded={13} items="center" justify="center" bg={style.disc}>
+        <Text fontFamily="$body" fontWeight="700" fontSize={13} color={marked ? '$card' : '$muted'}>
+          {glyph}
+        </Text>
+      </YStack>
+      <Text
+        flex={1}
+        fontFamily="$body"
+        fontSize="$4"
+        color={wrong ? '$red' : '$ink'}
+        textDecorationLine={wrong ? 'line-through' : 'none'}
+      >
+        {text}
+      </Text>
+    </XStack>
+  );
+}
+
+export function Options({ options, onPick, reveal }: Readonly<OptionsProps>): React.ReactNode {
   return (
     <YStack gap="$2">
       {options.map((option, i) => {
-        const right = reveal != null && i === reveal.answer;
-        const wrong = reveal != null && i === reveal.picked && !right;
         const letter = OPTION_LETTERS[i];
-        const row = (
-          <XStack
-            gap="$3"
-            items="center"
-            p="$3"
-            minH={48}
-            rounded="$3"
-            borderWidth={right || wrong ? 2 : 1}
-            borderColor={right ? '$green' : wrong ? '$red' : '$rule'}
-            bg={right ? '$greenWash' : wrong ? '$redWash' : '$card'}
-          >
-            <YStack
-              width={26}
-              height={26}
-              rounded={13}
-              items="center"
-              justify="center"
-              bg={right ? '$green' : wrong ? '$red' : '$wash'}
-            >
-              <Text fontFamily="$body" fontWeight="700" fontSize={13} color={right || wrong ? '$card' : '$muted'}>
-                {right ? '✓' : wrong ? '✗' : letter}
-              </Text>
-            </YStack>
-            <Text
-              flex={1}
-              fontFamily="$body"
-              fontSize="$4"
-              color={wrong ? '$red' : '$ink'}
-              textDecorationLine={wrong ? 'line-through' : 'none'}
-            >
-              {option}
-            </Text>
-          </XStack>
-        );
+        const row = <OptionRow letter={letter} text={option} mark={markFor(i, reveal)} />;
         if (reveal) return <YStack key={i}>{row}</YStack>;
         return (
           <Tap key={i} label={`Option ${letter}: ${option}`} onPress={() => onPick(i)}>

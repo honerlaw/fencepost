@@ -1,5 +1,5 @@
 import type { DomainId, Rng } from '@/game/types';
-import type { CardSource } from './card-source';
+import type { BatchStats, CardSource } from './card-source';
 import { hashDevice } from './log';
 import { makePlan, pickDomain, pickFlavor } from './plan';
 import { buildPrompt } from './prompt';
@@ -45,18 +45,27 @@ export function clientIp(request: Request, behindFly: boolean): string {
   return fly ?? request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() ?? 'unknown';
 }
 
-export function createHandlers(deps: HandlerDeps) {
+export interface Handlers {
+  health: () => Promise<Response>;
+  cards: (request: Request) => Promise<Response>;
+  flag: (request: Request) => Promise<Response>;
+}
+
+function health(): Promise<Response> {
+  return Promise.resolve(json({ ok: true }));
+}
+
+export function createHandlers(deps: HandlerDeps): Handlers {
   const lastDomain = new Map<string, DomainId>();
 
   const remember = (deviceId: string, domain: DomainId) => {
     lastDomain.delete(deviceId);
     lastDomain.set(deviceId, domain);
-    if (lastDomain.size > MAX_REMEMBERED_DEVICES) lastDomain.delete(lastDomain.keys().next().value!);
+    for (const oldest of lastDomain.keys()) {
+      if (lastDomain.size <= MAX_REMEMBERED_DEVICES) break;
+      lastDomain.delete(oldest);
+    }
   };
-
-  async function health(): Promise<Response> {
-    return json({ ok: true });
-  }
 
   /** Order: validate (400) → rate limit, consuming a token (429) → configured (503) → stream. */
   async function cards(request: Request): Promise<Response> {
@@ -67,7 +76,7 @@ export function createHandlers(deps: HandlerDeps) {
     const params = parsed.value;
 
     const limit = takeAll([
-      [deps.limits.cardsIp, clientIp(request, !!deps.behindFly)],
+      [deps.limits.cardsIp, clientIp(request, deps.behindFly === true)],
       [deps.limits.cardsDevice, params.deviceId],
     ]);
     if (!limit.ok) return limited(limit);
@@ -91,16 +100,14 @@ export function createHandlers(deps: HandlerDeps) {
 
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
-        let closed = false;
-        let firstCard = false;
-        let timedOut = false;
-        let sent = 0;
+        // Shared with the timers and the batch task, which all change it.
+        const run = { closed: false, firstCard: false, timedOut: false, sent: 0 };
         const write = (event: Record<string, unknown>) => {
-          if (closed) return;
+          if (run.closed) return;
           try {
             controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'));
           } catch {
-            closed = true;
+            run.closed = true;
           }
         };
 
@@ -108,58 +115,76 @@ export function createHandlers(deps: HandlerDeps) {
         // Reasoning models can think for a while before the first card; pings keep proxies from timing out.
         const ping = setInterval(() => write({ event: 'ping' }), PING_MS);
         const timeout = setTimeout(() => {
-          timedOut = true;
+          run.timedOut = true;
           abort.abort(new Error('timeout'));
         }, BATCH_TIMEOUT_MS);
 
-        void (async () => {
-          let outcome = 'ok';
-          let stats: Awaited<ReturnType<CardSource['getBatch']>> | null = null;
-          try {
-            stats = await source.getBatch({ domain, plan, prompt, signal: abort.signal }, (card) => {
-              if (!firstCard) {
-                firstCard = true;
-                clearInterval(ping);
-              }
-              sent++;
-              write({ event: 'card', card });
-            });
-            if (timedOut) {
-              outcome = 'timeout';
-              write({ event: 'error', code: 'timeout' });
-            } else if (request.signal.aborted) {
-              outcome = 'client_abort';
-            } else {
-              write({ event: 'done', sent: stats.sent });
-            }
-          } catch {
-            outcome = timedOut ? 'timeout' : request.signal.aborted ? 'client_abort' : 'error';
-            write({ event: 'error', code: timedOut ? 'timeout' : 'upstream_error' });
-          } finally {
+        const onCard = (card: unknown) => {
+          if (!run.firstCard) {
+            run.firstCard = true;
             clearInterval(ping);
-            clearTimeout(timeout);
-            request.signal.removeEventListener('abort', onClientAbort);
-            if (!closed) {
-              closed = true;
-              try {
-                controller.close();
-              } catch {
-                // Already closed by the client.
-              }
-            }
-            deps.log({
-              event: 'batch',
-              device,
-              domain,
-              model: stats?.model ?? null,
-              sent: stats?.sent ?? sent,
-              dropped: stats?.dropped ?? null,
-              latencyMs: deps.now() - started,
-              usage: stats?.usage ?? null,
-              outcome,
-            });
           }
-        })();
+          run.sent++;
+          write({ event: 'card', card });
+        };
+
+        const finished = (stats: BatchStats): string => {
+          if (run.timedOut) {
+            write({ event: 'error', code: 'timeout' });
+            return 'timeout';
+          }
+          if (request.signal.aborted) return 'client_abort';
+          write({ event: 'done', sent: stats.sent });
+          return 'ok';
+        };
+
+        const failed = (): string => {
+          write({ event: 'error', code: run.timedOut ? 'timeout' : 'upstream_error' });
+          if (run.timedOut) return 'timeout';
+          return request.signal.aborted ? 'client_abort' : 'error';
+        };
+
+        const batch = async (): Promise<{ outcome: string; stats: BatchStats | null }> => {
+          try {
+            const stats = await source.getBatch({ domain, plan, prompt, signal: abort.signal }, onCard);
+            return { outcome: finished(stats), stats };
+          } catch {
+            return { outcome: failed(), stats: null };
+          }
+        };
+
+        const close = () => {
+          if (run.closed) return;
+          run.closed = true;
+          try {
+            controller.close();
+          } catch {
+            // Already closed by the client.
+          }
+        };
+
+        const finish = async () => {
+          const { outcome, stats } = await batch();
+          clearInterval(ping);
+          clearTimeout(timeout);
+          request.signal.removeEventListener('abort', onClientAbort);
+          close();
+          deps.log({
+            event: 'batch',
+            device,
+            domain,
+            model: stats?.model ?? null,
+            sent: stats?.sent ?? run.sent,
+            dropped: stats?.dropped ?? null,
+            latencyMs: deps.now() - started,
+            usage: stats?.usage ?? null,
+            outcome,
+          });
+        };
+
+        finish().catch(() => {
+          // Only logging can throw here, after the stream has closed: nothing is left to tell the client.
+        });
       },
       cancel() {
         abort.abort(new Error('client closed'));
@@ -181,7 +206,7 @@ export function createHandlers(deps: HandlerDeps) {
     const parsed = parseFlagRequest(body.value);
     if (!parsed.ok) return json({ error: parsed.error }, 400);
     const limit = takeAll([
-      [deps.limits.flagIp, clientIp(request, !!deps.behindFly)],
+      [deps.limits.flagIp, clientIp(request, deps.behindFly === true)],
       [deps.limits.flagDevice, parsed.value.deviceId],
     ]);
     if (!limit.ok) return limited(limit);
@@ -196,5 +221,3 @@ export function createHandlers(deps: HandlerDeps) {
 
   return { health, cards, flag };
 }
-
-export type Handlers = ReturnType<typeof createHandlers>;

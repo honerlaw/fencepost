@@ -15,6 +15,7 @@ import { CardView } from '@/components/card/card-view';
 import { VerdictPanel } from '@/components/card/verdict-panel';
 import type { Slot } from '@/game/engine';
 import { canSwipeAdvance } from '@/game/rules';
+import type { Progress } from '@/game/types';
 import { playHaptic } from '@/lib/haptics';
 import { gameStore, useGame } from '@/store';
 import { DotGrid } from './dot-grid';
@@ -32,7 +33,44 @@ function slotKey(slot: Slot): string {
   return slot.kind === 'card' ? `card:${slot.card.id}` : slot.kind;
 }
 
-export function Feed() {
+function SlotBody({
+  slot,
+  progress,
+  domain,
+  onAnswer,
+  onNext,
+}: Readonly<{
+  slot: Slot;
+  progress: Progress;
+  domain: string | null;
+  onAnswer: (picked: number | number[]) => void;
+  onNext: () => void;
+}>) {
+  const actions = gameStore.getState();
+  switch (slot.kind) {
+    case 'card': {
+      return (
+        <>
+          <CardView card={slot.card} result={slot.result} onAnswer={onAnswer} onSkip={actions.skip} />
+          {slot.result ? (
+            <VerdictPanel card={slot.card} result={slot.result} onNext={onNext} onFlag={actions.flagWrong} />
+          ) : null}
+        </>
+      );
+    }
+    case 'welcome': {
+      return <WelcomeCard progress={progress} onDealIn={actions.dealIn} />;
+    }
+    case 'loading': {
+      return <LoadingCard since={slot.since} domain={domain} />;
+    }
+    case 'error': {
+      return <ErrorCard code={slot.code} onRetry={actions.retry} />;
+    }
+  }
+}
+
+export function Feed(): React.ReactNode {
   const hydrated = useGame((s) => s.hydrated);
   const game = useGame((s) => s.game);
   const toasts = useGame((s) => s.toasts);
@@ -117,7 +155,6 @@ export function Feed() {
   };
 
   if (!game) return <YStack flex={1} bg="$board" />;
-  const slot = game.current;
 
   return (
     <YStack flex={1} bg="$board">
@@ -144,20 +181,13 @@ export function Feed() {
             onMomentumScrollEnd={() => (scroll.current.momentum = false)}
           >
             <Animated.View style={[{ width: '100%', maxWidth: 560, gap: 12 }, cardStyle]}>
-              {slot.kind === 'card' ? (
-                <>
-                  <CardView card={slot.card} result={slot.result} onAnswer={onAnswer} onSkip={actions.skip} />
-                  {slot.result ? (
-                    <VerdictPanel card={slot.card} result={slot.result} onNext={goNext} onFlag={actions.flagWrong} />
-                  ) : null}
-                </>
-              ) : slot.kind === 'welcome' ? (
-                <WelcomeCard progress={game.progress} onDealIn={actions.dealIn} />
-              ) : slot.kind === 'loading' ? (
-                <LoadingCard since={slot.since} domain={game.fetch.domain} />
-              ) : (
-                <ErrorCard code={slot.code} onRetry={actions.retry} />
-              )}
+              <SlotBody
+                slot={game.current}
+                progress={game.progress}
+                domain={game.fetch.domain}
+                onAnswer={onAnswer}
+                onNext={goNext}
+              />
             </Animated.View>
           </ScrollView>
         </GestureDetector>
