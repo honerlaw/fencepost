@@ -1,0 +1,17 @@
+# A PR touching any of these needs the `guardrails-approved` label, which only a person adds.
+# A trailing slash means everything under that directory.
+.claude/
+.dependency-cruiser.cjs
+.github/
+.gitleaks.toml
+.jscpd.json
+.prettierrc.json
+.semgrep/
+AGENTS.md
+commitlint.config.mjs
+eslint.config.mjs
+knip.json
+lefthook.yml
+scripts/guardrails/
+tsconfig.json
+vitest.config.mts
