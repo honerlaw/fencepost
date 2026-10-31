@@ -1,5 +1,6 @@
-// Whiteboard (light) and chalkboard (dark) color tokens from the design spec.
-// Kept framework-free so SVG drawing code and the Tamagui config share one source.
+// Whiteboard (light) and chalkboard (dark) color tokens. Documented in README under
+// "Theme and brand"; scripts/brand/palette.test.ts keeps that table and app.json in step with this file.
+// Kept framework-free so the brand renderer, SVG drawing code and the Tamagui config share one source.
 
 export const lightColors = {
   board: '#eef1ef',
