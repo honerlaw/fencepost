@@ -3,6 +3,7 @@ import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, XStack, YStack } from 'tamagui';
 import { DOMAINS } from '@/cards/domains';
+import { BrandMark } from '@/components/ui/brand-mark';
 import { Tap } from '@/components/ui/tap';
 import type { DomainId, Progress } from '@/game/types';
 import { toggleDomain } from './toggle-domain';
@@ -78,9 +79,12 @@ export function TopicsSheet({ progress, onChange, onClose }: Readonly<TopicsShee
         >
           <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 20 + insets.bottom, gap: 16 }}>
             <XStack items="center" justify="space-between">
-              <Text fontFamily="$display" fontWeight="800" fontSize="$8" color="$ink">
-                Fencepost
-              </Text>
+              <XStack items="center" gap="$2">
+                <BrandMark size={28} />
+                <Text fontFamily="$display" fontWeight="800" fontSize="$8" color="$ink">
+                  Fencepost
+                </Text>
+              </XStack>
               <Tap label="Done" onPress={onClose} px="$3" py="$2" rounded="$3" bg="$ink">
                 <Text fontFamily="$display" fontWeight="800" fontSize="$4" color="$card">
                   Done

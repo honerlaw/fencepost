@@ -85,6 +85,7 @@
     "web": "expo start --web",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
+    "brand:render": "tsx scripts/brand/render-assets.ts",
     "build:web": "expo export --platform web",
     "e2e": "expo export --platform web && playwright test",
     "cards:eval": "doppler run --project fencepost --config prd -- tsx scripts/cards-eval.ts",

@@ -96,6 +96,13 @@ test('card was wrong appears only after a wrong answer and takes it off the coun
   await expect(page.getByTestId('stat-rematches')).toHaveText('0');
 });
 
+test('the topics sheet shows the mark beside the name', async ({ page }) => {
+  await open(page);
+  await openTopics(page);
+  await expect(page.getByTestId('brand-mark')).toBeVisible();
+  await expect(page.getByTestId('topics-sheet').getByText('Fencepost', { exact: true })).toBeVisible();
+});
+
 test('every button in the card, verdict, top bar and topics sheet has a name', async ({ page }) => {
   await open(page);
   const check = async () => {
