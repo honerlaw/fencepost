@@ -1,7 +1,7 @@
 # Proposal: stop-duplicate-cards
 
 **Date**: 2026-10-31
-**Status**: Draft
+**Status**: Shipped (2026-10-31)
 
 ## Goal
 
@@ -58,24 +58,23 @@ Criteria: (1) actually stops a repeat reaching the player; (2) knows everything 
 
 ## Approach
 
-All new files are in `src/game/engine/`, one function per file, matching the folder's convention. Nothing imports `src/cards`.
+What was built. New files are in `src/game/engine/`, one function per file, and nothing imports `src/cards`.
 
-1. `title-key.ts`: `titleKey(title)`: lowercase, replace runs of anything outside `a-z0-9` with one space, trim. An empty key never matches. No Unicode property escapes, to stay safe on Hermes.
-2. `pending-titles.ts`: `pendingTitles(state)`: the current card's title, unplayed starters, then the queue, in play order. An answered current card is already in `recent`, and de-duplication handles it.
-3. `is-seen-title.ts`: `isSeenTitle(state, title)`: non-empty key that matches `progress.recent`, pending titles or `progress.missed`.
-4. `recent-for-request.ts`: `recentForRequest(state)`: `progress.recent` then pending titles, de-duplicated by non-empty key keeping the latest position, last 20. `RECENT_SENT` moves to `constants.ts`. Pending titles are last and number at most 8, so they're never cut. Exported from `engine/index.ts`. The store calls this in `runFetch` in place of `progress.recent.slice(-RECENT_SENT)`.
-5. `apply-batch-event.ts`, `card` case: after `normalizeGenerated`, return `state` if `isSeenTitle`. `received` isn't incremented. The drop is silent: there's no client reporting path, so the drop rate isn't visible, and the server's `sent` count and batch log still include dropped cards.
-6. `start-session.ts`: when `starterDone` is false, deal only starter cards whose title isn't in `progress.recent`. If none remain, set `starterDone` to true and show the welcome card. That branch isn't reachable with today's deck, because card 6 sets `starterDone` in the same commit as its title. It's a guard against a deck edit shipped over the air, which would otherwise hang on the loading card. Update the function's doc comment and the `Progress.recent` comment, which now has a second job.
-7. Tests in `src/game/engine.test.ts`, `src/store/game-store.test.ts` and a new reload test in `e2e/`. `manualBatches` starts recording `req`. Update `e2e/generated.spec.ts:29` for the new request.
-8. NOTES.md only if it documents this behaviour.
+1. `title-key.ts`: `titleKey(title)` lowercases, replaces runs of anything outside `a-z0-9` with one space, and trims. An empty key never matches.
+2. `pending-titles.ts`: `pendingTitles(state)` lists the current card, unplayed starters, then the queue.
+3. `is-seen-title.ts`: `isSeenTitle(state, title)` matches a non-empty key against `progress.recent`, pending titles and `progress.missed`.
+4. `recent-for-request.ts`: `recentForRequest(state)` lists `progress.recent` then pending titles, de-duplicated by non-empty key at the latest position, last 20. `RECENT_SENT` moved to `constants.ts`, and the store calls this in `runFetch`.
+5. `apply-batch-event.ts`: the `card` case returns `state` if `isSeenTitle`. `received` isn't incremented, so an all-duplicate batch fails on `done`. The drop is silent.
+6. `start-session.ts`: deals only starter cards whose title isn't in `progress.recent`. If none remain, it sets `starterDone` and shows the welcome card. That branch isn't reachable with today's deck, and it guards against a deck edit shipped over the air.
+7. `begin-fetch.ts`, found in review: Try again clears `lastAnsweredId`. Before this, a player whose only rematch was the last card played looped between the error card and loading until they restarted the app.
+8. Tests: engine and store tests per criterion, `e2e/generated.spec.ts` updated for the new request, and a new reload test in `e2e/starter.spec.ts`. Disabling enforcement failed 11 tests, disabling starter resume failed 5, and removing pending titles from the request failed 7.
 
-Trade-offs:
-- Title matching assumes repeats keep their title. Nothing has measured that. The prompt already tells the model not to repeat titles, so a reworded repeat is a likely way one survives, and this fix doesn't catch it.
+Trade-offs that stand:
+- Title matching assumes repeats keep their title. Nothing has measured that, and a reworded repeat gets through.
 - Title matching can drop a different card that shares a title. That costs one card from a paid batch, never a wrong answer.
 - The model is told at most 20 titles, fewer when titles are pending. The app enforces up to 30 recent titles plus up to 30 missed ones. A card matching one the model wasn't told about is paid for and dropped.
-- A short batch can bring the next fetch forward, so one queue fill can take more batches. Each counts toward the 60-a-day limit, and a single-topic player is the worst case.
-- An all-duplicate batch uses the existing error copy, "The card writer had a problem with that batch", which is misleading here. Try again sends nearly the same request, and for a single-topic player the domain can't vary.
-- A second all-duplicate batch stops fetching with nothing shown until the queue runs out.
+- A short batch can bring the next fetch forward. Each batch counts toward the 60-a-day limit, and a single-topic player is the worst case.
+- An all-duplicate batch uses the existing error copy, "The card writer had a problem with that batch", which is misleading here. A second one stops fetching with nothing shown until the queue runs out.
 - Generated repeats older than 30 cards can still happen.
 
 ## Success criteria

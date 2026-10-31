@@ -296,6 +296,17 @@ describe('batches', () => {
     expect(s.fetch.inFlight).toBe(false);
   });
 
+  it('Try again reaches a rematch that was the last card played, when the fetch fails again', () => {
+    const only = modelCard();
+    const failed = batchFailed(playing([], { missed: [only] }), 'upstream_error', deps());
+    expect(current(failed)).toMatchObject({ id: only.id, rematch: true });
+    const stuck = skip(failed, deps());
+    expect(stuck.current).toEqual({ kind: 'error', code: 'upstream_error' });
+    const retrying = beginFetch(stuck, 'manual', deps());
+    expect(retrying.current.kind).toBe('loading');
+    expect(current(batchFailed(retrying, 'upstream_error', deps()))).toMatchObject({ id: only.id, rematch: true });
+  });
+
   it('ignores malformed cards from the stream', () => {
     const s = applyBatchEvent(playing([]), { event: 'card', card: { id: 'x', type: 'flaw' } }, deps());
     expect(s.queue).toHaveLength(0);
@@ -491,6 +502,7 @@ describe('duplicate cards', () => {
       const wrongPick = ((first.current as { card: ModelCard }).card.answer + 1) % 4;
       const s = restart(flagWrong(answer(first, wrongPick, deps())));
       expect(current(s).id).toBe(deck()[1]!.id);
+      expect(s.progress.missed).toHaveLength(0);
     });
 
     it('sets starterDone when the remaining cards are finished', () => {
