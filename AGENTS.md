@@ -53,7 +53,7 @@ Every PR must pass the `ci-required` check before it can merge. It fails unless 
 - Every `eslint-disable`, `@ts-expect-error` and similar comment must have a matching entry with a reason in `scripts/guardrails/suppressions.json`.
 - Coverage and type-coverage thresholds only go up.
 - Never skip the git hooks. Do not use `--no-verify` or set `LEFTHOOK=0`.
-- Do not rename `ci-required`, or add path filters or a job-level `if:` that skips it. Branch protection waits on that exact name, so a PR would hang forever on a check that never reports.
+- Do not rename `ci-required`, or add path filters or a job-level `if:` that skips it. The `main` ruleset waits on that exact name, so a PR would hang forever on a check that never reports.
 
 If CI itself is broken and `main` needs a fix, the repo owner sets the `main` ruleset to Disabled, merges the fix, and sets it back to Active: **Settings > Rules > Rulesets > main > Enforcement status**. Nobody is on its bypass list, so this is the only way around the check, and it shows up in the repository's rule insights.
 

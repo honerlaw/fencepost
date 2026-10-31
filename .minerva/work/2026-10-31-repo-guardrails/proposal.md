@@ -1,7 +1,7 @@
 # Proposal: repo-guardrails
 
 **Date**: 2026-10-31
-**Status**: Draft
+**Status**: Shipped (2026-10-31)
 
 ## Goal
 Every PR runs a required check covering types, lint, tests, build and deterministic security analysis, and that check is what stands between a branch and main: a failing PR cannot be merged through the normal path, and the only way around it is a deliberate, visible settings change by the owner. The checks are strict enough to catch the specific ways AI-written code goes wrong. Adopt @onerlaw/agentic-eslint-plugin.
@@ -25,51 +25,49 @@ Facts verified at intake:
 - Project memory: no Fly commands; ask before pushing. The user's request this run names a PR, which authorizes push + PR. It does not authorize merging.
 
 ## Approach
-One work unit, one PR (the seed says "the PR"; phasing would need merges that are not authorized). Commit order keeps review and bisect workable: tooling and config, Prettier reformat alone, ESLint autofix alone, manual fixes grouped by rule family, CI last.
+One work unit, one PR. A strict type and lint baseline, standalone quality tools, security scanners, a build gate and repository rules together form one required check. Existing violations were fixed, not baselined.
 
 ### Layer 1: compiler
-tsconfig adds noUncheckedIndexedAccess, exactOptionalPropertyTypes, noImplicitOverride, noImplicitReturns, noFallthroughCasesInSwitch, noUnusedLocals, noUnusedParameters, noPropertyAccessFromIndexSignature, allowUnreachableCode=false, allowUnusedLabels=false.
+tsconfig adds noUncheckedIndexedAccess, exactOptionalPropertyTypes, noImplicitOverride, noImplicitReturns, noFallthroughCasesInSwitch, noUnusedLocals, noUnusedParameters, noPropertyAccessFromIndexSignature, allowUnreachableCode=false and allowUnusedLabels=false. `scripts/` has its own tsconfig with Node types, because TS 6 defaults `types` to none and the app must keep React Native's globals.
 
-### Layer 2: ESLint (--max-warnings 0, --report-unused-disable-directives)
-- eslint-config-expo/flat stays as the base (React, hooks, compiler rules). It already registers `import`, `react`, `react-hooks` and `@typescript-eslint`, so the first work step proves the combined config loads, reusing its registrations rather than redefining a plugin name (ESLint throws on a redefined plugin, and a second typescript-eslint copy would split versions).
-- @onerlaw/agentic-eslint-plugin, each rule in its own block: no-credential-in-url (all files), no-biome-ignore (all files), one-export-per-file (src, excluding src/app and tests), tamagui-native-id (src TSX), responsive-two-pane-flex and workspace-chrome-flex (src/components, if they match this layout), quality-model-token-floor only if a real tier function exists here. workspace-runtime-imports, rpc-error-standard, markdown-map-code-styles do not apply (no workspaces, no Connect-RPC, no markdown lib) and are left off, documented in the config.
-- typescript-eslint strictTypeChecked + stylisticTypeChecked.
-- sonarjs, security, regexp, unicorn@65, import-x (cycles, extraneous, unresolved), promise, no-unsanitized, eslint-comments (descriptions required, no unlimited disables), @vitest/eslint-plugin (no focused/disabled tests, expect-expect), eslint-plugin-playwright, react-you-might-not-need-an-effect.
-- eslint-plugin-vibe-proof is third-party and optional: adopted only if its source review passes, pinned to an exact version, with the review recorded. Dropped with a note otherwise.
-- Project-specific rules via no-restricted-imports / no-restricted-syntax, each citing its source: pure core (src/game, src/cards) cannot import react/expo/tamagui/zustand and cannot call Date.now / Math.random (proposal v1 criterion 5); client code cannot import src/server; process.env only in src/server/from-env.ts + scripts, and no EXPO_PUBLIC_ reads (AGENTS.md Secrets); no bare fetch of '/api', apiUrl required (2026-10-29-bug-expo-fetch-ignores-relative-urls-on-native).
+### Layer 2: ESLint (`--max-warnings 0`, unused disable directives are errors)
+- eslint-config-expo/flat stays the base.
+- `@onerlaw/agentic-eslint-plugin`, one block per rule: no-credential-in-url and no-biome-ignore everywhere, one-export-per-file in `src` except routes and tests, tamagui-native-id in `src` TSX, responsive-two-pane-flex in components and routes. The other rules do not apply here and are documented in the config and `negative-controls.md`.
+- typescript-eslint strictTypeChecked and stylisticTypeChecked, sonarjs, security, no-unsanitized, regexp, unicorn 65, import-x, promise, eslint-comments, @vitest/eslint-plugin, eslint-plugin-playwright, react-you-might-not-need-an-effect.
+- eslint-plugin-vibe-proof 1.10.0, exact pin, after a source review (MIT, no install scripts, no network, exec or eval), with a curated rule list.
+- Project bans in `no-restricted-imports` and `no-restricted-syntax`: the pure core has no framework imports, clock or randomness; client code cannot import server code; `process.env` only in `src/server/from-env/`; no cast `JSON.parse`; no relative `fetch`.
 
 ### Layer 3: standalone quality tools
-prettier (repo reformatted once), knip (dead code, unused deps), dependency-cruiser (layer rules, no cycles), jscpd (duplication threshold), type-coverage, vitest coverage thresholds, lockfile-lint (registry + https only), `expo install --check`, plus scripts/guardrails/:
-- check-suppressions: any eslint-disable / @ts-ignore / @ts-expect-error / `as X` / non-null `!` / .skip must be on a checked-in allowlist with a reason. The allowlist starts as whatever is genuinely needed, with no blanket entries.
-- check-pins: Tamagui stays exactly 2.7.7 (2026-10-29-decision-tamagui-pinned-to-2-7-7).
-- check-bundle-secrets: v1 criterion 7's grep over web and native exports.
-- check-guardrail-changes: fails on a PR that touches a guardrail file (list in .github/guardrail-paths.txt: eslint config, tsconfig, knip, dep-cruiser, jscpd, thresholds, suppression allowlist, workflows and the dependency-review config, scripts/guardrails, .claude/settings.json, lefthook) unless the PR carries the `guardrails-approved` label. Bootstraps: passes when the base branch has no path list, so this PR is exempt. Limit stated plainly: an agent with repo write could add the label; AGENTS.md forbids it, the Claude hook blocks the command, and the label is visible on the PR. It is a speed bump plus an audit trail, not a security boundary.
-Coverage, type-coverage and jscpd thresholds are set from measurements and only ever ratchet upward.
+prettier (repo reformatted once), knip, dependency-cruiser, jscpd (3%), type-coverage (99%), vitest coverage floors (statements 90, branches 84, functions 87, lines 93), lockfile-lint, and `expo install --check`. See replan.md: the blocking form runs offline against the lockfile-pinned map, and the online form is advisory. `scripts/guardrails/` holds:
+- check-suppressions: a token walk budgets disable comments, `as` casts, non-null `!` and focused or skipped tests against `suppressions.json` (12 entries).
+- check-pins: Tamagui stays exactly 2.7.7, and `expo.install.exclude` is rejected.
+- check-bundle-secrets: scans web and native exports for key names and key shapes.
+- check-guardrail-changes (CI only): a PR touching a path in `.github/guardrail-paths.txt` needs the `guardrails-approved` label. It passes when the base has no path list, so this PR is exempt, and it fails on an unknown base. Renames are seen as a delete plus an add.
+
+`npm run guard` runs Layers 1-3 and the build exports to the end. `npm run guard:security` runs gitleaks and semgrep.
 
 ### Layer 4: security tooling
-Blocking (deterministic for a given commit): gitleaks binary with checksum and fetch-depth 0 (not the action, which needs a licence for orgs); semgrep with repo-local rules in .semgrep/ run anonymously; CodeQL as an advanced workflow job with default setup off, query packs fixed by the pinned action; dependency-review-action (only newly added vulnerable deps; relies on the dependency graph, on by default for public repos, verified on the PR's first run). If a new dev dependency brings a vulnerable transitive package, it is upgraded, overridden or removed. It only gets an allowlist entry in the action's config, with a reason, if it is dev-only and no fix exists, and that entry is listed in the PR body; zizmor + actionlint; hadolint.
-Advisory, time-varying, reported but not in ci-required: osv-scanner, npm audit, semgrep registry packs, expo-doctor. They also run weekly. A newly published advisory must never freeze unrelated PRs; Dependabot security updates handle those.
-Overlaps are deliberate: sonarjs + security + semgrep + CodeQL work at different depths; osv/audit look at the whole tree while dependency-review looks at the diff; knip finds unused code while depcruise polices edges.
+Blocking: gitleaks (checksum-pinned binary, full history), semgrep with `.semgrep/` rules, CodeQL with a SARIF gate (the analyze step cannot fail on a finding by itself), dependency-review failing on moderate or higher in runtime and development scopes, zizmor, actionlint, hadolint.
+Advisory, in one job with `continue-on-error`, on PRs and weekly: osv-scanner, npm audit, expo-doctor, online `expo install --check`, semgrep registry packs.
 
 ### Layer 5: build gate
-Every PR: web export, native export (ios + android), bundle-secret check, `vitest run --coverage`, Playwright e2e with the same stub as today, docker build with no push. No Fly, no deploy.
+Every PR runs web and native exports, the bundle-secret check, `vitest run --coverage`, Playwright e2e against the stub, and a docker build with a run of `/api/health`. There is no native compile and no deploy.
 
 ### Layer 6: enforcement
-- One workflow, `.github/workflows/ci.yml`, triggered by pull_request (opened, synchronize, reopened, labeled, unlabeled) and push to main. Label events rerun the workflow, which is accepted, since a rerun is the only way the label check can update and repo labels are rare, with no paths filters and no skipping job-level `if:` on required jobs. Aggregate job `ci-required` lives in that workflow, `needs` every blocking job, runs with `if: always()`, and fails unless every needs result is `success` (failure, cancelled and skipped all fail).
-- CI policy: `permissions: contents: read` by default, every action SHA-pinned, binaries pinned by version + checksum, never pull_request_target, no secrets, `timeout-minutes` on every job, concurrency per ref with cancel-in-progress only for pull_request events, so push-to-main runs always finish, npm cache, retries 0 (a flaky test is a bug, not something to mask).
-- Branch protection is the last step, after a green run, and needs the user's confirmation at that moment because it is a repo-settings change outside the PR: require a PR, require `ci-required` bound to the GitHub Actions app (app_id 15368) so nothing else can post that name, block force-push and deletion, no required reviews (a solo dev cannot self-approve). The confirmation also decides enforce_admins. If declined, the exact command is left in the PR body and criterion 8 is reported unmet, not silently dropped.
-- Break-glass documented in AGENTS.md: if CI itself breaks and a repair PR cannot pass, the owner runs `gh api -X DELETE repos/honerlaw/fencepost/branches/main/protection/enforce_admins` (or removes the required check), merges the repair, and restores it. Renaming the `ci-required` job needs the protection updated in the same step.
-- lefthook: pre-commit (format, eslint on staged, gitleaks), commit-msg (commitlint), pre-push (typecheck, tests). Convenience only; CI is the gate. Installed by a guarded `prepare` that exits 0 when there is no .git, or CI is set, so npm ci in Docker (.git is dockerignored) and EAS cannot break; the docker build gate proves it.
-- `.claude/settings.json` hooks: PreToolUse blocks `git commit --no-verify`, `git push --no-verify`, and adding the `guardrails-approved` label; PostToolUse lints the edited file. Hooks live alongside the existing enabledPlugins key.
-- `npm run guard` runs every local check. AGENTS.md documents it, the required check, the no-weakening rule and break-glass.
-- Dependabot: github-actions and npm security updates.
-- Optional, non-blocking, outside the success criteria: weekly Stryker on src/game + src/cards, only if it works with Vitest 5. Otherwise a recommendation in the PR body.
+- `.github/workflows/ci.yml` runs on pull_request (including label events), push to main and weekly. The aggregate job `ci-required` needs every blocking job, runs with `if: always()`, and fails unless every result is `success`.
+- CI policy: `contents: read` by default, SHA-pinned actions, checksum-pinned binaries, no `pull_request_target`, no secrets, a timeout on every job, cancel-in-progress for PRs only, concurrency grouped by PR number or SHA. Tools are called directly, not through package.json scripts, because `package.json` is not a guarded path.
+- `main` is guarded by a repository ruleset, not classic branch protection, at the owner's request. It has no bypass list and blocks deletion and force pushes. The owner adds the pull request rule (0 approvals) and required status check `ci-required` from GitHub Actions (integration id 15368). Break-glass is the ruleset's Enforcement status, documented in AGENTS.md.
+- lefthook: pre-commit (format, eslint on staged files, gitleaks), commit-msg (commitlint), pre-push (types, tests). Installed by a guarded `prepare`, so Docker and EAS installs skip it.
+- `.claude/` hooks: `block-bypass.mjs` refuses `--no-verify`, `git commit -n`, `core.hooksPath`, `LEFTHOOK` settings and adding the approval label. `lint-edited-file.mjs` lints each edited file in this repository.
+- Dependabot: github-actions updates weekly; npm security updates only. These need the repository's Dependabot security updates setting, which is off unless the owner turns it on. The dependency graph was turned on for dependency-review, which also turned on Dependabot alerts.
+- expo, expo-router and expo-sqlite were bumped to current patches so the online check starts green. The Dockerfile uses `USER 1000:1000` for hadolint.
+- Stryker was not added. It is a recommendation in the PR body.
 
 ### Fixing existing violations
-Everything starts at error; existing violations are fixed here, no baseline or bulk suppression. No `!` or `as X` added just to silence an error: narrow or validate instead. Volume fallback: a rule that is wrong for this codebase, or that produces mass violations with no signal, is turned off or narrowed in eslint.config with a one-line reason. A genuinely correct exception gets a scoped disable with a description plus an allowlist entry. Read 2026-10-29-decision-web-renders-after-mount before touching the mount gating, so a rule cannot "fix" that behaviour away.
+Everything started at error, and existing violations were fixed in this PR with no baseline or bulk suppression. Rules that were wrong for this codebase are off or narrowed in `eslint.config.mjs` with a reason, and correct exceptions have budget entries.
 
 ### Out of scope
-ESLint 10 upgrade. Fly/EAS deploy steps. Merging the PR: auto-merge stays off, the user decides. Writing new custom rules for the plugin (recommendations only, per the seed).
+ESLint 10, Fly and EAS deploy steps, merging the PR, and writing new custom plugin rules (recommendations only).
 
 ## Success criteria
 1. `npm run guard` exits 0 on the branch and runs every local check in Layers 1-3. check-guardrail-changes is CI-only, because it needs the PR's labels and base branch, and is listed as such.
@@ -79,9 +77,9 @@ ESLint 10 upgrade. Fly/EAS deploy steps. Merging the PR: auto-merge stays off, t
 5. `vitest run` passes with at least as many tests as main (count recorded before and after), with no existing assertion removed or weakened. `npm run e2e`, web + native export, bundle-secret check and docker build all pass.
 6. `.github/workflows/ci.yml` runs on every pull_request to main, a green `ci-required` run exists on the PR, and actionlint + zizmor pass on it.
 7. A real run on the PR shows a deliberately failing blocking job turning `ci-required` red. The commit is reverted before the PR is finished.
-8. Branch protection on main requires `ci-required` (app_id 15368), verified with `gh api`. If the user declines, this is reported as unmet with the command in the PR body.
+8. The `main` ruleset requires a pull request and `ci-required` from GitHub Actions (integration id 15368), verified with `gh api`. The owner adds these rules; until then this is reported as unmet, with the steps in the PR body.
 9. The PR body lists everything added besides the plugin, lists custom-rule recommendations for the user to decide on, and lists every rule turned off or narrowed, and every allowlist entry, with its reason and a total count.
 10. AGENTS.md documents `npm run guard`, the required check, the no-weakening rule and break-glass. No secret is added to CI.
 
 ## Open Questions
-One deliberate user gate at the end of the run: confirm branch protection and choose enforce_admins (criterion 8). Everything else is decided during work and recorded: plugin rule applicability; measured coverage, type-coverage and jscpd thresholds; vibe-proof adoption; expo-doctor stability.
+None. Dependabot security updates and the custom-rule recommendations are the owner's to decide, and are listed in the PR body.
