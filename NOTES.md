@@ -47,6 +47,43 @@ On (`experiments.reactCompiler` in `app.json`). It works with Tamagui 2.7.7 and 
 
 Costs are calculated from token counts and OpenRouter's list prices at the time. Accuracy matched, so Sonnet won on speed and cost. The cards were worked through by hand, not executed, and 25 clean cards per model can't rule out a low error rate.
 
+## Deploying to TestFlight
+
+`.eas/workflows/deploy-ios.yml` runs on every push to `main`. It hashes the native side of the app. If no production build has that hash, it builds and uploads to TestFlight. If one does, it publishes an over-the-air update to the `production` branch, which only builds with that same hash download.
+
+**Generated cards need the Fly server.** `https://fencepost.fly.dev` isn't deployed, so until step 3 of "Not done by this run" is finished, a TestFlight build shows the bundled starter deck and generated batches fail. Device testing covers native config, gestures, haptics and storage until then.
+
+### One-time setup
+
+Nothing runs until step 4, so these can wait until you're ready.
+
+1. Check that you have a paid Apple Developer membership.
+2. Run `npx eas-cli@latest credentials --platform ios`, choose the `production` profile, and log in to Apple. Set up the distribution certificate and provisioning profile, then **App Store Connect: Manage your API Key** > **Set up your project to use an API Key for EAS Submit**.
+3. Create the app in [App Store Connect](https://appstoreconnect.apple.com/apps) with the bundle ID `com.derek.honerlaw.fencepost`. Copy its **Apple ID** from **App Information**, and open a PR that adds it to `eas.json`, but don't merge it yet:
+   ```json
+   "submit": { "production": { "ios": { "ascAppId": "<Apple ID>" } } }
+   ```
+4. Install the Expo GitHub App and link `honerlaw/fencepost` to the `@onerlawllc/fencepost` project: **Project settings > GitHub** on expo.dev.
+5. In App Store Connect, go to **TestFlight** and create an internal group with automatic distribution. Add yourself, and install the TestFlight app on your phone.
+6. Merge the `ascAppId` PR. That push is the first deploy, and it takes a build plus Apple's processing, usually 30 to 45 minutes in total.
+7. On that first build, check that progress survives a restart (SQLite). Once the Fly server exists, check that a generated batch arrives, which proves the router `origin`.
+
+Signing credentials and the App Store Connect API key live on EAS, not in Doppler, because EAS has to hold them to sign and upload. They're the one exception to "all secrets live in Doppler". None of them reach this repo or GitHub, and the workflow uses no token.
+
+### Day to day
+
+- **Which path a run took:** see **Workflows** on the [project page](https://expo.dev/accounts/onerlawllc/projects/fencepost/workflows). Either `Build iOS` and `Upload to TestFlight` ran, or `Publish iOS update` did. The others show as skipped.
+- **Getting an update on the phone:** updates download when the app launches and apply on the next launch, so close and reopen it twice.
+- **What forces a new build:** a native dependency bump, or a change to `app.json` or to a config plugin. Each one uses a build from the plan's monthly quota (see **Usage** on expo.dev). Adding `ascAppId` doesn't change the hash, because `eas.json` isn't part of it.
+- **Roll back an update:** `npx eas-cli@latest update:republish --branch production`, then pick the last good update.
+- **Compile without signing:** `npx eas-cli@latest build --platform ios --profile simulator` needs no Apple login.
+
+### When something goes wrong
+
+- **A failed deploy never blocks merging.** The workflow reports on expo.dev, and `ci-required` doesn't depend on it, so check the run after the first deploy and after any native change. It also doesn't wait for `main`'s own CI run: the gate is `ci-required` on the PR.
+- **The build worked but the upload failed.** This one is easy to miss: later merges find the build and publish updates, while TestFlight never gets the binary. Re-run the failed job on expo.dev, or run `npx eas-cli@latest submit --platform ios --latest`.
+- **The build expired.** TestFlight builds last 90 days, and JavaScript-only merges don't renew them. Run `npx eas-cli@latest build --platform ios --profile production --auto-submit`.
+
 ## Not done by this run: user-run steps
 
 These were left undone on purpose. Most need your accounts, money or hardware, or are outward-facing.
@@ -60,7 +97,7 @@ These were left undone on purpose. Most need your accounts, money or hardware, o
    - `npx expo run:ios` needs **Xcode 26.4+** (SDK 58's requirement). With Xcode 26.2 it fails inside Expo's own native code, not app code:
      `node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptObject.swift:946:36: error: sending 'slot' risks causing data races`.
      Xcode 26.4+ is the documented fix, but it hasn't been tested here.
-   - The cloud alternative needs setup first because `eas.json` doesn't exist yet. Run `npx eas-cli@latest build:configure` or add a `development` profile with `"ios": { "simulator": true }`. Add `expo-dev-client` if the profile sets `"developmentClient": true`. Log in to an Expo account, then run `npx eas-cli@latest build --profile development --platform ios`.
+   - The cloud alternative needs no Xcode at all: `npx eas-cli@latest build --platform ios --profile simulator` (see "Deploying to TestFlight"). A debug `development` profile doesn't exist yet. It would need `expo-dev-client` and `"developmentClient": true`.
    - From now on, adding a native module that Expo Go doesn't bundle, or a config plugin whose effect only a native build exercises, means a dev build is required to verify it.
 6. **Android.** No emulator pass was done (no Android SDK on this machine).
 7. **Manual simulator passes.** Airplane mode mid-batch, reduce motion, large text / Dynamic Type, native swipe feel, and physical haptic feel.
