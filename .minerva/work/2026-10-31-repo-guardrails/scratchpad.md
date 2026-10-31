@@ -28,6 +28,31 @@
 - CI calls tools directly rather than through package.json scripts: `.github/` needs the label to change and package.json does not, so a script could otherwise be gutted without approval.
 - Dockerfile `USER node` became `USER 1000:1000` for hadolint DL3066. hadolint's default threshold fails on info findings, so this fix was preferred to lowering the threshold.
 - `.claude/settings.json` hook wiring is held back until the fork finishes, so hooks cannot fire on its in-progress edits.
-- `expo install --check` moved from blocking to advisory. It fails whenever Expo publishes a patch (58.0.21 installed, ~58.0.22 expected), so it depends on the outside world rather than the commit, which is the rule the advisory job already follows. expo, expo-router and expo-sqlite are one patch behind; not bumped here.
+- Superseded by replan.md: `expo install --check` moved from blocking to advisory. It fails whenever Expo publishes a patch (58.0.21 installed, ~58.0.22 expected), so it depends on the outside world rather than the commit, which is the rule the advisory job already follows. expo, expo-router and expo-sqlite are one patch behind; not bumped here.
 - `expo-updates` is ignored in knip because its Expo plugin assumes updates are on; the app does not use them.
 - TS 6 defaults `types` to none, so `scripts/` has its own tsconfig with Node types, and the app keeps React Native's globals.
+
+## Decisions 2026-10-31 (completion and review)
+
+- [reviewer] completion verification: Verifier `revise` (criteria 1, 2, 4; CodeQL inert; AGENTS.md wording). Treated as a success-criteria divergence.
+- [panel, 0/3 accept, first vote] replan: `expo install --check` to advisory rejected by Proponent and Skeptic, both proposing the offline check. Arbiter not dispatched: quorum could not be reached, and they agreed on the revision.
+- [panel, 3/3 accept, 3 with fixes] replan: blocking offline check plus advisory online check. All fixes folded into replan.md. Bump given a disposition: done in this unit.
+- [solo] triage of the first code review: every confirmed finding FIX, including the low ones, because each was small. Two items need the user: Dependabot security updates are off for the repo, and the dependency graph may be off.
+
+## Review triage 2026-10-31
+
+1. check-suppressions misses comments after a template literal: FIX, walks parsed tokens.
+2. CodeQL cannot fail a PR: FIX, `.github/scripts/check-codeql.sh` reads the SARIF.
+3. Two CI jobs ran through package.json scripts: FIX, tools called directly; more paths guarded; `typeCoverage` block removed.
+4. Renames escape check-guardrail-changes: FIX, `--no-renames`.
+5. "A PR cannot get past this check" is false: FIX the claim; the limit is stated in the script and the PR body.
+6. `.ts` parsed as TSX: FIX, script kind by extension.
+7. Dependabot npm entry is inert: SUGGEST, repo setting, asked at the end gate.
+8. Dependency graph may be off: verified on the PR's first run.
+9. Advisory job never shows red: FIX, steps use `if: !cancelled()`.
+10. Concurrency cancels queued push runs: FIX, groups by PR number or SHA.
+11. Semgrep child_process and model-call gaps: FIX.
+12. `const { env } = process` passes the ban: FIX.
+13. Bundle regex too narrow: FIX.
+14. Lint hook root: FIX, root comes from the edited file.
+15. check-guardrail-changes failed open on an unknown base (from the Verifier): FIX, `ls-tree` throws.

@@ -55,7 +55,7 @@ Added after review:
 | --- | --- | --- | --- |
 | e2e (Playwright) | spec expecting text that is not on the page | caught | `1 failed` |
 | Docker build | `COPY` of a missing file | caught | `not found` |
-| expo install --check (offline) | expo-sqlite hand-set to 57.0.1 | caught | exit 1, `expectedVersionOrRange: ~58.0.14`; exit 0 on the real install |
+| expo install --check (offline) | expo-sqlite hand-set to 57.0.1 | caught | exit 1, `expectedVersionOrRange` in the bundled map; exit 0 on the real install |
 | check-pins | `expo.install.exclude` set | caught | unit test in `guardrails.test.ts` |
 | check-codeql.sh | SARIF with a security-severity 8.8 result, then one with only a quality result | caught | exit 1 with the rule and location, then exit 0 |
 | check-suppressions | comment after a template literal; generic arrow in `.ts`; inline `eslint` config | caught | unit tests in `guardrails.test.ts` |
