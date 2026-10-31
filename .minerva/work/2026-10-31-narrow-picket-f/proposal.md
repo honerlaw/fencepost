@@ -12,7 +12,7 @@ The request, verbatim: "Can you narrow the F in the logo? basically just make it
 Facts verified at intake:
 - `src/theme/brand-mark.ts` is the single geometry source. `scripts/brand/` derives every asset from it, and the in-app component reads it (`2026-10-31-decision-brand-assets-render-from-one-geometry-module`).
 - Rasters and brand SVGs go through `centeredMark`, which scales the mark's box to a fixed fraction of canvas height. A taller box alone would be scaled back to the old height there. The Icon Composer layers are written in raw 1024-unit coordinates, so the bundle picks up the new size from the geometry alone.
-- The mark's half-diagonal stays about 359 units, so the Android safe-zone margin is unchanged.
+- The mark's half-diagonal stays about 359 units, so the Android safe zone still holds: the margin goes from 4.2 px to 3.1 px at the 0.5 fraction.
 - Memory says to ask before pushing. The user invoked the auto orchestrator, whose ship phase pushes and opens a PR. That invocation is the authorization for this run.
 
 ## Approach
@@ -20,7 +20,7 @@ Facts verified at intake:
    - `bounds`: `{ x: 322, y: 212, width: 396, height: 600 }` (was 300, 228, 440, 568)
    - `picket`: `M322 288 L380 212 L438 288 V772 a40 40 0 0 1 -40 40 H362 a40 40 0 0 1 -40 -40 Z` (stem 116, was 128; cap slope kept; foot radius 40, was 44)
    - `topRail`: `{ x: 322, y: 347, width: 396, height: 88, radius: 44 }`
-   - `accentRail`: `{ x: 322, y: 550, width: 324, height: 88, radius: 44 }`
+   - `accentRail`: `{ x: 380, y: 550, width: 266, height: 88, radius: 44 }` (visible end at 646; the cap sits behind the picket so no blue fringes the post's left edge)
    The box keeps its center at (520, 512).
 2. Raise the fractions so the scale stays about the same and the extra height shows: `TILE_FRACTION` 0.56 to 0.59 (`scripts/brand/svg.ts`), `SPLASH_FRACTION` 0.8 to 0.845 and `FOREGROUND_FRACTION` 0.47 to 0.5 (`scripts/brand/targets.ts`). Update "440 by 568 units" in the comment above `FOREGROUND_FRACTION`. Its "359 units" stays true.
 3. Run `npm run brand:render` and commit every regenerated asset. The Icon Composer layers use no fraction, so their mark goes from 55.5% to 58.6% of the canvas, in line with `icon.png` at 0.59.

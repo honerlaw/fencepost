@@ -11,6 +11,6 @@ export const BRAND_MARK = {
   picket: 'M322 288 L380 212 L438 288 V772 a40 40 0 0 1 -40 40 H362 a40 40 0 0 1 -40 -40 Z',
   /** The upper rail, in ink. */
   topRail: { x: 322, y: 347, width: 396, height: 88, radius: 44 },
-  /** The lower rail, in the accent color. */
-  accentRail: { x: 322, y: 550, width: 324, height: 88, radius: 44 },
+  /** The lower rail, in the accent color. It starts under the picket so no blue edges the post. */
+  accentRail: { x: 380, y: 550, width: 266, height: 88, radius: 44 },
 } as const;
