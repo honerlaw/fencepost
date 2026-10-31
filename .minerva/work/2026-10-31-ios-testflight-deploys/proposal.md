@@ -41,7 +41,7 @@ What was built:
 6. Measured: `ascAppId` leaves the iOS fingerprint unchanged, as does `version`; `package.json` scripts, `.gitignore` and the `origin` change it.
 7. NOTES.md "Deploying to TestFlight" holds the one-time setup, day-to-day use and failure recovery. README and the NOTES build status were updated.
 
-**The trigger is unverified.** Code review found that Expo links only GitHub organization repos to Expo organizations, and `honerlaw/fencepost` is a personal repo (`onerlawllc` being an Expo organization is inferred). Runbook step 4 therefore starts by confirming the account types, then moves the repo to the `onerlaw` org (preferred) or the EAS project to the personal account. A panel held this as a fix, not a replan, because the approach and criteria stand under those two moves. A GitHub Actions trigger with a token would change the approach and need a replan. No success criterion covers the trigger: the first post-setup merge is the end-to-end test.
+**The trigger is unverified.** No success criterion covers the repo link or the `on: push` trigger, so the first post-setup merge is the end-to-end test. Expo's docs say only GitHub organization repos can link to Expo organizations, which review raised as a blocker, but the owner confirmed `onerlawllc` is an Expo organization and that any GitHub repo can be linked to it. No move is needed.
 
 ### Scope
 
@@ -63,7 +63,7 @@ The knowledge constraint `2026-10-29-constraint-sdk-58-ios-dev-build-needs-xcode
 Criteria: (1) no EAS/CI token and no new GitHub secret; (2) bounded build spend; (3) fast delivery to device; (4) a deployment-config PR needs no extra machinery; (5) only merged code deploys (merged means passed `ci-required` on the PR through the `main` ruleset, not that `main`'s own CI run has finished).
 
 **A (recommended). EAS Workflow, fingerprint-gated.** `.eas/workflows/deploy-ios.yml`, on push to `main`, adapted from Expo's "Deploy to production" example, iOS only, with no `internal_groups` so an automatic-distribution group receives builds:
-`fingerprint` -> `get-build` (platform ios, profile production, fingerprint hash, `wait_for_in_progress: true`) -> if no build: `build` (ios, production) -> `testflight` (build_id) | if build exists: `update` (branch production, platform ios). Triggered by the Expo GitHub App linked to the repo, so no token exists anywhere (the link needs the ownership move described in Approach). Requires `expo-updates` with `runtimeVersion: { policy: fingerprint }` and `updates.url`, and `channel: production` in `eas.json`.
+`fingerprint` -> `get-build` (platform ios, profile production, fingerprint hash, `wait_for_in_progress: true`) -> if no build: `build` (ios, production) -> `testflight` (build_id) | if build exists: `update` (branch production, platform ios). Triggered by the Expo GitHub App linked to the repo, so no token exists anywhere. Requires `expo-updates` with `runtimeVersion: { policy: fingerprint }` and `updates.url`, and `channel: production` in `eas.json`.
 
 **B. GitHub Actions.** A new workflow gated on CI success via `workflow_run`, with an `EXPO_TOKEN` secret, running `eas build --auto-submit --non-interactive`. Gates deploy on main's CI run, but adds a GitHub secret (outside Doppler unless a sync is set up), touches `.github/` (needs the label), and adds a privileged workflow to a public repo.
 
@@ -95,5 +95,5 @@ This unit delivers deploy-ready config and a verified native compile; the first 
 
 ## Open Questions
 
-- The owner chooses how to make the repo linkable (runbook step 4), and supplies `ascAppId` in one small PR that doubles as the first deploy trigger.
+- The owner supplies `ascAppId` in one small PR that doubles as the first deploy trigger.
 </content>

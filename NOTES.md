@@ -63,12 +63,7 @@ Nothing runs until step 4, so these can wait until you're ready.
    ```json
    "submit": { "production": { "ios": { "ascAppId": "<Apple ID>" } } }
    ```
-4. Make the repo linkable, then link it. Expo's docs say only GitHub organization repos can link to Expo organizations, and `honerlaw/fencepost` belongs to a personal GitHub account. First confirm the account types: look at `onerlawllc` on expo.dev, and open **Project settings > GitHub** to see whether the repo is offered. If it isn't, pick one of these:
-   - **Move the repo to the `onerlaw` GitHub org (preferred).** No code changes. Afterwards, update local remotes with `git remote set-url origin`, check that the `main` ruleset and the `guardrails-approved` label came across, check that Actions still run, and fix any `honerlaw/fencepost` URLs in the docs.
-   - **Move the EAS project to the personal `derek.honerlaw` account**, and change `owner` in `app.json`. The docs don't say that a personal repo can link to a personal Expo account, so check that first. Signing credentials then go under that account.
-   - **Keep both where they are**, and add a GitHub Actions job that calls `eas workflow:run` with an `EXPO_TOKEN`. This is a last resort: it adds a token and changes a guarded path, so it needs its own plan.
-
-   Then connect your GitHub user under **User settings > Connections** on expo.dev, install the Expo GitHub App, and link the repo.
+4. Connect your GitHub user under **User settings > Connections** on expo.dev, install the Expo GitHub App, and link `honerlaw/fencepost` to the `@onerlawllc/fencepost` project: **Project settings > GitHub**.
 5. In App Store Connect, go to **TestFlight** and create an internal group with automatic distribution. Add yourself, and install the TestFlight app on your phone.
 6. Merge the `ascAppId` PR. That push is the first deploy, and the first real test of the trigger, which nothing has exercised yet. It takes a build plus Apple's processing, usually 30 to 45 minutes in total. Merge nothing else between steps 4 and 6, and that includes Dependabot PRs: without `ascAppId` the upload fails, and the build it leaves behind makes the next merge publish an update instead of uploading a binary.
 7. On that first build, check that progress survives a restart (SQLite). Once the Fly server exists, check that a generated batch arrives, which proves the router `origin`.

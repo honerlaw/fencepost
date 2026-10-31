@@ -17,6 +17,7 @@ The owner wanted each merge to `main` on a physical iPhone. Three options were w
 - `concurrency` serializes runs, so queued merges can't publish in the wrong order. Only the newest waiting run goes, and it contains the merges before it.
 - `runtimeVersion` uses the `fingerprint` policy, so an update reaches only builds with the matching native side.
 - EAS Hosting was rejected as a server replacement: rate limits are per machine, and the OpenRouter key would have to leave Doppler.
+- The trigger is the Expo GitHub App linked to the repo. Expo's docs say only GitHub organization repos can link to Expo organizations, but the owner confirmed that any GitHub repo can link to the `onerlawllc` organization, so don't move the repo or the project because of that line.
 - Apple signing credentials and the App Store Connect API key live on EAS. This is a deliberate exception to "all secrets live in Doppler", because EAS has to hold them to sign and upload.
 
 ## Implications
