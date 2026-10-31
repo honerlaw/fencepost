@@ -6,6 +6,8 @@ name: Deploy server
 on:
   push:
     branches: [main]
+  # The redeploy after a failure. The environment below refuses any ref but main.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,7 +23,8 @@ jobs:
     name: Deploy to Fly
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    # The token lives in this environment, which only `main` can use.
+    # The token lives in this environment, which only `main` can use. That policy is what stops a
+    # workflow edited on a branch from reading it.
     environment: production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -34,3 +37,16 @@ jobs:
       - run: flyctl deploy --remote-only --ha=false
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      # --ha=false doesn't shrink an app that already has two machines, so catch that here. The
+      # count includes stopped machines. Health shows the server is up, not which commit it runs.
+      - name: Check for one machine and a healthy server
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          machines="$(flyctl machine list --app fencepost --json | jq length)"
+          if [ "$machines" != "1" ]; then
+            echo "::error::Expected 1 machine, found $machines. Run fly scale count 1 (see NOTES.md)."
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 30 --retry 5 --retry-all-errors --retry-delay 5 \
+            https://fencepost.fly.dev/api/health

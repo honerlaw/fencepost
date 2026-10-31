@@ -69,7 +69,7 @@ Everything here goes through the EAS CLI except linking GitHub, which it has no 
 7. Merge the `ascAppId` PR. `ascAppId` doesn't change the hash, so step 2's build still matches and this merge publishes an update. That's the first real test of the trigger. **It didn't fire:** PR #6 merged on 2026-10-31 and EAS recorded no `deploy-ios` run, so step 5 looks unfinished. EAS CLI can't show the link, so check it on expo.dev. The workflow's own build and upload path gets its first run at the next native change.
 8. On the first build, check that progress survives a restart (SQLite). Once the Fly server exists, check that a generated batch arrives, which proves the router `origin`.
 
-Signing credentials and the App Store Connect API key live on EAS, not in Doppler, because EAS has to hold them to sign and upload. They're the one exception to "all secrets live in Doppler". None of them reach this repo or GitHub, and the workflow uses no token.
+Signing credentials and the App Store Connect API key live on EAS, not in Doppler, because EAS has to hold them to sign and upload. They're one of two exceptions to "all secrets live in Doppler"; the other is the GitHub copy of the Fly token (see "Deploying the server"). None of them reach this repo or GitHub, and the workflow uses no token.
 
 ### Day to day
 
@@ -88,11 +88,11 @@ Signing credentials and the App Store Connect API key live on EAS, not in Dopple
 
 ## Deploying the server
 
-`.github/workflows/deploy-server.yml` runs `flyctl deploy --remote-only --ha=false` on every push to `main`. It's separate from the iOS workflow, and the two run at the same time, so a merge can reach the server before it reaches the phone, or the other way round. Older builds stay in use too, so `/api/cards` changes have to stay compatible with them.
+`.github/workflows/deploy-server.yml` runs `flyctl deploy --remote-only --ha=false` on every push to `main`, then fails unless the app has exactly one machine and `/api/health` answers. It's separate from the iOS workflow, and the two run at the same time, so a merge can reach the server before it reaches the phone, or the other way round. Older builds stay in use too, so `/api/cards` changes have to stay compatible with them.
 
 ### One-time setup
 
-The Fly app `fencepost` already exists, in the personal org, because `onerlaw-llc` has overdue invoices and Fly refused to create it there. After clearing those, `fly apps move fencepost --org onerlaw-llc` moves it.
+The Fly app `fencepost` already exists, in the personal org, because `onerlaw-llc` has overdue invoices and Fly refused to create it there. That placement is temporary: after clearing the invoices, `fly apps move fencepost --org onerlaw-llc` moves it. Whether the deploy token survives a move is unverified, so run the workflow by hand afterwards, and rotate the token if it fails.
 
 Steps 2 to 4 were done on 2026-10-31. They're kept here for rebuilding the app or rotating the token. Check step 1 before merging the workflow, because the merge is the first production deploy:
 
@@ -114,16 +114,35 @@ Steps 2 to 4 were done on 2026-10-31. They're kept here for rebuilding the app o
    ```
 5. After the first deploy, check `https://fencepost.fly.dev/api/health`, then run `fly logs -a fencepost` to watch the `{"event":"batch",...}` lines.
 
+### What protects the token
+
+The main-only branch policy on `production` is what stops a workflow edited on a branch from reading the token. It lives in GitHub settings, not in this repo, and the environment has no required reviewers. Check it with:
+
+```sh
+gh api repos/honerlaw/fencepost/environments/production/deployment-branch-policies --jq '.branch_policies[].name'
+```
+
+The only line it should print is `main`. Workflow changes reach `main` only with the `guardrails-approved` label.
+
+The token can't read other apps, but it can deploy any image to `fencepost`, and a malicious image could read `OPENROUTER_API_KEY` from the machine. That's another reason for the credit limit.
+
+Doppler `prd_ci` is the source of truth. The GitHub environment secret is a manual copy, and it's an exception to "all secrets live in Doppler", alongside the EAS signing credentials.
+
 ### Day to day
 
-- **Which version is live:** `fly releases -a fencepost` lists them. Each deploy replaces the single machine, so in-flight card streams drop and the in-memory rate limits reset.
-- **Roll back:** revert the PR. The merge deploys the old code. For something faster, run `fly deploy --image <image from fly releases --image> --ha=false`.
-- **Run exactly one machine** until the rate limits move to Redis (see the "Rate-limit state" row above). `fly.toml` can't enforce this: `min_machines_running = 1` is a floor, so the workflow passes `--ha=false`. If two machines exist, run `fly scale count 1`.
+- **Which version is live:** `fly releases -a fencepost` lists them. `/api/health` shows the server is up, not which commit it runs. A clean `flyctl deploy` is the proof of the release.
+- **Accepted downtime:** each deploy replaces the single machine, even on a docs-only merge. In-flight card streams drop and the in-memory rate limits reset.
+- **Cancelled runs:** when merges queue, GitHub cancels the older waiting run and the newest commit wins, so a cancelled run isn't a failure.
+- **Roll back:** revert the PR, and the merge deploys the old code. For something faster, find the earlier image with `fly releases -a fencepost --image`, then run `fly deploy --image <image> --ha=false`.
+- **Run exactly one machine** until the rate limits move to Redis (see the "Rate-limit state" row above). `fly.toml` can't enforce this, and `--ha=false` doesn't shrink an app that already has two. The workflow's check catches that after the fact.
+- **Version bumps:** Dependabot covers the action pins. Bump the flyctl `version` in the workflow by hand.
 
 ### When something goes wrong
 
-- **A failed deploy never blocks merging.** It shows on `main`'s Actions tab, and `ci-required` doesn't depend on it. Fix it, then re-run the job or merge again.
-- **Deploys fail with an auth error.** The token expires after a year. Rerun the token command from step 3, then the last command from step 4.
+- **A failed deploy never blocks merging, and nothing alerts beyond GitHub's failure email.** The red run on `main`'s Actions tab is the signal. The server stays on the older commit until a redeploy or the next merge.
+- **Redeploy:** `gh workflow run deploy-server.yml --ref main`.
+- **The machine check failed.** The new image is already live on every machine. Run `fly scale count 1 -a fencepost`, then redeploy.
+- **Deploys fail with an auth error.** The token expires on **2027-10-31**, and nothing reminds anyone first. The owner rotates it: rerun the token command from step 3, rerun the last command from step 4, then redeploy to verify.
 
 ## Not done by this run: user-run steps
 
