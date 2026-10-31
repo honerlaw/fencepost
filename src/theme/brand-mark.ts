@@ -6,11 +6,11 @@ export const BRAND_MARK = {
   /** The drawing box the shapes are placed in. */
   size: 1024,
   /** The box the three shapes actually occupy, for centering and cropping. */
-  bounds: { x: 300, y: 228, width: 440, height: 568 },
+  bounds: { x: 322, y: 212, width: 396, height: 600 },
   /** The picket: a post with a pointed cap and a rounded foot, in ink. */
-  picket: 'M300 312 L364 228 L428 312 V752 a44 44 0 0 1 -44 44 H344 a44 44 0 0 1 -44 -44 Z',
+  picket: 'M322 288 L380 212 L438 288 V772 a40 40 0 0 1 -40 40 H362 a40 40 0 0 1 -40 -40 Z',
   /** The upper rail, in ink. */
-  topRail: { x: 300, y: 356, width: 440, height: 96, radius: 48 },
+  topRail: { x: 322, y: 347, width: 396, height: 88, radius: 44 },
   /** The lower rail, in the accent color. */
-  accentRail: { x: 300, y: 548, width: 360, height: 96, radius: 48 },
+  accentRail: { x: 322, y: 550, width: 324, height: 88, radius: 44 },
 } as const;
