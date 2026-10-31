@@ -11,6 +11,7 @@ export const ICON_BUNDLE = 'assets/fencepost.icon';
 
 /** `#rrggbb` as Icon Composer's `srgb:r,g,b,a` with five decimals. */
 export function srgb(hex: string): string {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) throw new Error(`srgb: expected #rrggbb, got ${hex}`);
   const channels = [1, 3, 5].map((i) => (Number.parseInt(hex.slice(i, i + 2), 16) / 255).toFixed(5));
   return `srgb:${channels.join(',')},1.00000`;
 }
@@ -23,7 +24,7 @@ function layer(name: string): {
   return { 'image-name': `${name}.svg`, name, position: { scale: 1, 'translation-in-points': [0, 0] } };
 }
 
-/** The bundle's files: icon.json plus the ink layer and the accent layer, back to front. */
+/** The bundle's files: icon.json plus one SVG per layer. Icon Composer lists layers front to back. */
 export function iconComposerTargets(): readonly Target[] {
   const { size } = BRAND_MARK;
   const inkOnly = markShapes({ ink: CHALK.ink, accent: 'none' });
@@ -32,7 +33,7 @@ export function iconComposerTargets(): readonly Target[] {
     fill: { solid: srgb(darkColors.board) },
     groups: [
       {
-        layers: [layer('accent-rail'), layer('picket-f')],
+        layers: [layer('picket-f'), layer('accent-rail')],
         shadow: { kind: 'neutral', opacity: 0.5 },
         translucency: { enabled: false, value: 0.5 },
       },
@@ -41,7 +42,7 @@ export function iconComposerTargets(): readonly Target[] {
   };
   return [
     { file: `${ICON_BUNDLE}/icon.json`, size, content: `${JSON.stringify(json, null, 2)}\n` },
-    { file: `${ICON_BUNDLE}/Assets/accent-rail.svg`, size, content: svgDocument(size, accentOnly) },
     { file: `${ICON_BUNDLE}/Assets/picket-f.svg`, size, content: svgDocument(size, inkOnly) },
+    { file: `${ICON_BUNDLE}/Assets/accent-rail.svg`, size, content: svgDocument(size, accentOnly) },
   ];
 }

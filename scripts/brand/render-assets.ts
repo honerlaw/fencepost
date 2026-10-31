@@ -8,10 +8,10 @@
 import { chromium, type Browser } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { format, resolveConfig } from 'prettier';
 
 import { iconComposerTargets } from './icon-composer';
 import { rasterTargets, vectorTargets, type Target } from './targets';
+import { targetText } from './text';
 
 const ROOT = process.cwd();
 
@@ -36,15 +36,9 @@ async function rasterize(browser: Browser, { size, content }: Target): Promise<B
   return png;
 }
 
-/** JSON goes through the repo's Prettier config, so `prettier --check` and a re-render agree. */
-async function text({ file, content }: Target): Promise<string> {
-  if (!file.endsWith('.json')) return content;
-  const options = (await resolveConfig(path.join(ROOT, file))) ?? {};
-  return format(content, { ...options, parser: 'json' });
-}
-
 async function main(): Promise<void> {
-  for (const target of [...vectorTargets(), ...iconComposerTargets()]) write(target.file, await text(target));
+  for (const target of [...vectorTargets(), ...iconComposerTargets()])
+    write(target.file, await targetText(target, ROOT));
   const browser = await chromium.launch();
   try {
     for (const target of rasterTargets()) write(target.file, await rasterize(browser, target));

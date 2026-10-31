@@ -6,7 +6,7 @@ import { centeredMark, svgDocument, tile, type Inks } from './svg';
 export interface Target {
   /** Relative to the repo root. */
   readonly file: string;
-  /** Pixels on a side for a raster; the viewBox for a vector. */
+  /** Pixels on a side for a raster; the viewBox for a vector or an icon-bundle layer. */
   readonly size: number;
   /** An SVG document, or JSON for `.json` files. */
   readonly content: string;
@@ -28,11 +28,14 @@ export const FOREGROUND_FRACTION = 0.47;
 
 const SPLASH_FRACTION = 0.8;
 
+/** The app icon: the mark on the chalkboard, as both a raster and a vector. */
+const ICON_TILE = svgDocument(1024, tile(1024, darkColors.board, CHALK, 0));
+
 /** Rasters, in the order they are written. */
 export function rasterTargets(): readonly Target[] {
   const board = darkColors.board;
   return [
-    { file: 'assets/images/icon.png', size: 1024, content: svgDocument(1024, tile(1024, board, CHALK, 0)) },
+    { file: 'assets/images/icon.png', size: 1024, content: ICON_TILE },
     { file: 'assets/images/favicon.png', size: 96, content: svgDocument(96, tile(96, board, CHALK, 96 * 0.2)) },
     {
       file: 'assets/images/android-icon-foreground.png',
@@ -70,6 +73,6 @@ export function vectorTargets(): readonly Target[] {
       size: 1024,
       content: svgDocument(1024, centeredMark(1024, SPLASH_FRACTION, CHALK)),
     },
-    { file: 'assets/brand/icon.svg', size: 1024, content: svgDocument(1024, tile(1024, darkColors.board, CHALK, 0)) },
+    { file: 'assets/brand/icon.svg', size: 1024, content: ICON_TILE },
   ];
 }
