@@ -71,3 +71,48 @@ npm run cards:eval -- --model <id> --batches 5   # real model, spends OpenRouter
 - `src/components/`, `src/store/` and `src/lib/` are the UI, the persisted zustand store, and the NDJSON client.
 - `server.js`, `Dockerfile` and `fly.toml` are the server's deploy files. `.github/workflows/deploy-server.yml` deploys the server to Fly on each merge to `main`, once the one-time setup in NOTES.md is done.
 - `.eas/workflows/deploy-ios.yml` ships iOS to TestFlight or over the air on each merge to `main`, once the one-time setup in NOTES.md is done.
+
+## Theme and brand
+
+The app is a whiteboard in light mode and a chalkboard in dark mode. The tokens live in `src/theme/colors.ts`, feed `tamagui.config.ts`, and are the only colors the brand assets and `app.json` use; `scripts/brand/palette.test.ts` fails if this table or `app.json` drifts from that file.
+
+| Token | Light | Dark | Used for |
+|---|---|---|---|
+| `board` | `#eef1ef` | `#16211d` | The board behind everything, the splash and the icon tile |
+| `dot` | `#d2d9d5` | `#26352f` | The 1 px dot grid on the board |
+| `card` | `#ffffff` | `#1d2b26` | Card and sheet surfaces |
+| `ink` | `#17202a` | `#eaf0ec` | Text, the mark, and marker or chalk strokes |
+| `muted` | `#5b6570` | `#9caea6` | Secondary text |
+| `rule` | `#d4dad7` | `#33453e` | Borders and dividers |
+| `wash` | `#e7ecea` | `#26362f` | Quiet fills: stat tiles, pills, progress tracks |
+| `blue` | `#1c56c4` | `#8ab6ff` | The accent: progress, selected chips, the mark's lower rail |
+| `blueWash` | `#e3eafa` | `#213248` | Selected-chip fill |
+| `red` | `#cc3224` | `#ff8a7c` | Wrong answers |
+| `redWash` | `#fbe6e3` | `#3e2522` | Wrong-answer fill |
+| `green` | `#157a45` | `#72d9a0` | Right answers |
+| `greenWash` | `#e0f2e7` | `#1d3a2b` | Right-answer fill |
+| `gold` | `#c08a12` | `#e9bb4f` | Combo and streak highlights |
+| `goldInk` | `#7d5506` | `#f2cb6c` | Text on a gold wash |
+| `goldWash` | `#fbf0d2` | `#373020` | Combo-pill fill |
+
+Type: Bricolage Grotesque for display text (titles, the wordmark), Atkinson Hyperlegible for body text, JetBrains Mono for code lines (with ligatures off, see NOTES.md), and Kalam for marker-style notes. Behind everything sits the dot grid from `src/components/feed/dot-grid.tsx`.
+
+The mark is a capital F built from one pointed picket and two rails: the fencepost error as a letter. The lower rail carries the accent. Its shapes live once, in `src/theme/brand-mark.ts`; the in-app `BrandMark` component draws them from the theme, and `scripts/brand/` renders every asset from them and the palette:
+
+| File | Size | Used by |
+|---|---|---|
+| `assets/fencepost.icon/` | Icon Composer bundle, 1024 pt | `ios.icon`: the iOS app icon, chalk on the chalkboard; iOS derives dark and tinted looks |
+| `assets/images/icon.png` | 1024 x 1024, opaque | `icon`: the Android legacy icon, and iOS if the bundle is dropped |
+| `assets/images/android-icon-foreground.png` | 512 x 512 | `android.adaptiveIcon.foregroundImage`, inside the 66% safe zone, over `backgroundColor` = dark `board` |
+| `assets/images/android-icon-monochrome.png` | 512 x 512, white | `android.adaptiveIcon.monochromeImage`, for themed icons |
+| `assets/images/splash-icon.png`, `splash-icon-dark.png` | 512 x 512 | The `expo-splash-screen` plugin, 120 pt wide on the light or dark `board`; the splash follows the system scheme so it fades into the board the app paints |
+| `assets/images/favicon.png` | 96 x 96 | `web.favicon` |
+| `assets/brand/*.svg` | 1024 viewBox | The mark and the icon as vectors, for designers; outputs, not masters |
+
+To change the mark or the palette, edit `src/theme/brand-mark.ts` or `src/theme/colors.ts`, then run:
+
+```bash
+npm run brand:render     # needs Playwright's Chromium, like npm run e2e
+```
+
+It is a local, manual step: the rasters are Chromium screenshots at 1x with no text, so a second run on the same machine and Playwright version rewrites identical bytes, but another machine can differ by a few pixels. Review the image diff and commit. Nothing in CI regenerates them. Icon, splash and adaptive-icon changes are native changes, so the merge takes the TestFlight build path (NOTES.md).
