@@ -2,7 +2,7 @@
 
 A doomscroll feed of tap-to-answer logic puzzles for senior engineers, on a whiteboard (light) or chalkboard (dark). Five card types: spot the flaw, break it, trace it, pick the design, and order the steps. It ships with a 6-card starter deck. After that, a small stateless server writes cards live with an AI model and streams them to the app as NDJSON.
 
-> **Not production-ready yet.** The card server's plumbing, validation, rate limits and streaming are tested, but whether generated puzzles are *correct* depends on the model. That is unverified until someone runs `npm run cards:eval` against real models, reads the cards, and picks `CARD_MODEL`. See [NOTES.md](NOTES.md).
+> **Not production-ready yet.** Nothing is deployed and no release build has been tested. Generated cards use `anthropic/claude-sonnet-5.5`, chosen after a hand-checked eval of 50 cards found no wrong answers, but that sample is small, so keep spot-checking cards. Cards also take about 40 s to start arriving. See [NOTES.md](NOTES.md).
 
 ## Run the app
 
@@ -20,11 +20,13 @@ npm run dev     # expo start with the Doppler secrets; use this for generated ca
 npm run serve   # node server.js with the Doppler secrets (after an export)
 ```
 
-`/api/cards` also needs `CARD_MODEL` (an OpenRouter model id). Set it in Doppler once you've picked one:
+`/api/cards` also needs `CARD_MODEL` (an OpenRouter model id), and `CARD_MODEL_FALLBACK` is an optional second model, tried only if the first fails before sending a card. Both are set in Doppler (see "Card model" in [NOTES.md](NOTES.md)). To change them:
 
 ```bash
-doppler secrets set CARD_MODEL=<model-id> --project fencepost --config prd
+doppler secrets set CARD_MODEL=<model-id> CARD_MODEL_FALLBACK=<model-id> --project fencepost --config prd
 ```
+
+Restart the server afterwards, because it reads these values at startup.
 
 Without `OPENROUTER_API_KEY` and `CARD_MODEL`, `/api/cards` answers 503. The app then shows an error card, and the starter deck and rematches stay playable.
 
@@ -48,7 +50,7 @@ Docker (the same image Fly would run):
 
 ```bash
 docker build -t fencepost .
-doppler run --project fencepost --config prd -- docker run --rm -p 8080:8080 -e OPENROUTER_API_KEY -e CARD_MODEL fencepost
+doppler run --project fencepost --config prd -- docker run --rm -p 8080:8080 -e OPENROUTER_API_KEY -e CARD_MODEL -e CARD_MODEL_FALLBACK fencepost
 ```
 
 ## Checks

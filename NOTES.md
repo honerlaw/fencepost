@@ -31,12 +31,27 @@ On (`experiments.reactCompiler` in `app.json`). It works with Tamagui 2.7.7 and 
 | Rate-limit state | one in-memory limiter | Each `+api.ts` route is bundled separately, so `/api/cards` and `/api/flag` each keep their own limiter state. Both are still per machine; move them to Redis before running more than one machine. The IP limit trusts `Fly-Client-IP` only when `FLY_APP_NAME` is set (on Fly); elsewhere it uses the last `X-Forwarded-For` hop, which a client can forge if no proxy sits in front. The app starts batches at least 20 s apart (the device refill, shared as `MIN_FETCH_GAP_MS`) so normal play never hits a 429, and gives up on a batch still open after 100 s. |
 | `expo/fetch` and relative URLs | `fetch('/api/cards')` | Only the global `fetch` is wrapped to resolve relative paths against the router origin; `expo/fetch` (needed for streamed bodies) passes the path straight to native, where it fails. `src/lib/api-url.ts` builds the absolute URL from `window.location`, which expo-router sets from the dev-server origin or the `origin` above. |
 
+## Card model
+
+`CARD_MODEL` is `anthropic/claude-sonnet-5.5` and `CARD_MODEL_FALLBACK` is `anthropic/claude-opus-5.5`, both in Doppler. They were chosen from `npm run cards:eval -- --model <id> --batches 5` on 2026-10-31, with the two runs going in parallel:
+
+| | Sonnet 5.5 | Opus 5.5 |
+|---|---|---|
+| Cards kept / dropped | 25 / 0 | 25 / 0 |
+| Wrong answers (checked by hand) | 0 | 0 |
+| Failed batches | 0 | 0 |
+| Average first card | 39.1 s | 46.3 s |
+| Average batch | 45.2 s | 58.8 s |
+| Slowest batch (limit 90 s) | 48.7 s | 66.7 s |
+| Estimated cost per batch | $0.06 | $0.10 |
+
+Costs are calculated from token counts and OpenRouter's list prices at the time. Accuracy matched, so Sonnet won on speed and cost. The cards were worked through by hand, not executed, and 25 clean cards per model can't rule out a low error rate.
+
 ## Not done by this run: user-run steps
 
 These were left undone on purpose. Most need your accounts, money or hardware, or are outward-facing.
 
-1. **Choose the model and check card correctness. This is the most important step.** The OpenRouter key is in Doppler (project `fencepost`, config `prd`), so run
-   `npm run cards:eval -- --model <id> --batches 5` for a strong reasoning model and a cheaper one. Read every card, set `CARD_MODEL` (and optionally `CARD_MODEL_FALLBACK`) in Doppler, and tune the prompt if needed. **Until then, the correctness of generated cards is unverified.** Only the plumbing, validation and streaming are tested, using a mock model and a local fake OpenRouter.
+1. **Keep checking card correctness. This is the most important step.** The model is chosen (see "Card model" above), but correctness rests on 50 hand-checked cards. Spot-check generated cards during real play, and rerun `npm run cards:eval -- --model <id> --batches 5` and read every card after changing the prompt or the model. The automated tests cover only the plumbing, validation and streaming, using a mock model and a local fake OpenRouter.
 2. **OpenRouter key and credit limit.** Set a hard credit limit on the key in the OpenRouter dashboard as the cost backstop.
 3. **Fly.io.** Nothing was deployed. When you're ready: `fly launch --no-deploy` (accept the Dockerfile, no database) → connect the Doppler project to the Fly app under **Syncs → Fly.io** in the Doppler dashboard, which keeps the secrets in step (or copy them once with `doppler secrets download --project fencepost --config prd --no-file --format docker | grep -v '^DOPPLER_' | fly secrets import`; the `docker` format matters because `env` wraps values in quotes) → `fly deploy --ha=false` → check `https://<app>.fly.dev/api/health` → `fly logs` to watch the `{"event":"batch",...}` lines. If the app name isn't `fencepost`, update the `origin` above.
    - **Run exactly one machine** until the rate limits move to Redis (see the "Rate-limit state" row above). `fly.toml` can't enforce this: `min_machines_running = 1` is a floor, and without `--ha=false` the first `fly deploy` starts two machines. Later `fly deploy` runs keep the current count, so the flag matters only on the first deploy or after scaling to zero. If two machines already exist, run `fly scale count 1`.
@@ -53,4 +68,5 @@ These were left undone on purpose. Most need your accounts, money or hardware, o
 
 ## Small known follow-ups
 
+- Cards take about 40 s to start arriving, but the app only fetches more once 2 or fewer are queued (`LOW_WATER` in `src/game/fetch-policy.ts`), so players will likely reach the loading card between batches. Raising `LOW_WATER` to 3 is the cheapest first step; if that isn't enough, reduce reasoning (the code doesn't set it today) and rerun the eval.
 - The Docker image is about 1.26 GB because Expo/React Native are runtime `dependencies`. A slimmer runtime stage (only `express`, `expo-server` and the export) would cut that.
