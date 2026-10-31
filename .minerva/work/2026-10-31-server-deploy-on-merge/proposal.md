@@ -1,7 +1,7 @@
 # Proposal: server-deploy-on-merge
 
 **Date**: 2026-10-31
-**Status**: Draft
+**Status**: Shipped (2026-10-31)
 
 ## Goal
 
@@ -17,7 +17,7 @@ A new GitHub Actions workflow, `.github/workflows/deploy-server.yml`, triggers o
 
 The job runs in the `production` GitHub environment. Its main-only deployment branch policy is what stops a workflow edited on a branch from reading the token. It has no required reviewers, so that policy is the only gate on branches, and the human-only `guardrails-approved` label is the gate on workflow changes reaching `main`.
 
-The job installs pinned flyctl 0.4.114 through a SHA-pinned action and runs `flyctl deploy --remote-only --ha=false`, which fails if the new machine doesn't pass its checks. It then fails unless `flyctl machine list --app fencepost --json | jq length` is exactly 1, counting stopped machines, and `https://fencepost.fly.dev/api/health` answers, using `curl --fail` with retries so a restart can't turn a good deploy red. That check proves the server is up, not which commit it runs; the proof of the release is `flyctl deploy` exiting cleanly. `--ha=false` doesn't shrink an existing app, so the count check detects drift, and `fly scale count 1` repairs it. No path filter.
+The job installs pinned flyctl 0.4.114 through a SHA-pinned action and runs `flyctl deploy --remote-only --ha=false` with the commit SHA in the image label, so `fly releases --image` shows which commit is live. The deploy fails if the new machine doesn't pass its checks. It then fails unless `flyctl machine list --app fencepost --json | jq length` is exactly 1, counting stopped machines, and `https://fencepost.fly.dev/api/health` answers, using `curl --fail` with retries so a restart can't turn a good deploy red. That check proves the server is up, not which commit it runs. The check step names `shell: bash` so a flyctl failure can't read as a machine count. `--ha=false` doesn't shrink an existing app, so the count check detects drift, and `fly scale count 1` repairs it. No path filter.
 
 Accepted risks:
 
@@ -32,7 +32,9 @@ Rollback is a revert PR, or `fly deploy --image` with an earlier image from `fly
 
 A knowledge decision entry records why. It reconciles this with the iOS entry that rejected GitHub Actions: that decision stays in force for iOS and isn't superseded. Fly has no EAS-style native credential, EAS Hosting was rejected separately, and the branch policy, app scope, expiry and guarded path mitigate the token. The personal-org placement is temporary, pending the overdue invoices on `onerlaw-llc`.
 
-Already done outside the repo at the owner's instruction: the Fly app was created in the personal org; `CARD_MODEL`, `CARD_MODEL_FALLBACK` and `OPENROUTER_API_KEY` are staged on Fly; an app-scoped deploy token is in Doppler `prd_ci` and the GitHub `production` environment secret; two build-only remote builds succeeded, one with the deploy token. Verified: the token can't list apps or read another app, it can list machines on `fencepost`, and `production` allows only branch `main`.
+`fly.toml` sets a 512 MB `shared-cpu-1x` machine, because the default 256 MB leaves little room above the server's idle memory.
+
+Already done outside the repo at the owner's instruction: the Fly app was created in the personal org and given a shared IPv4 and an IPv6; `CARD_MODEL`, `CARD_MODEL_FALLBACK` and `OPENROUTER_API_KEY` are staged on Fly; an app-scoped deploy token is in Doppler `prd_ci` and the GitHub `production` environment secret; two build-only remote builds succeeded, one with the deploy token. Verified: the token can't list apps or read another app, it can list machines on `fencepost`, and `production` allows only branch `main`.
 
 ## Success criteria
 
