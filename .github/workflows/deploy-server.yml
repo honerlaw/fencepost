@@ -1,0 +1,36 @@
+# Deploys the card server to Fly on every push to main, which the `main` ruleset only allows after
+# `ci-required` passes on the PR. This runs in a separate workflow so that a failed deploy never
+# touches `ci-required`. Setup and failure recovery are in NOTES.md.
+name: Deploy server
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# One deploy at a time, so two queued merges can't release in the wrong order. No cancel-in-progress:
+# the running deploy finishes, then only the newest waiting run goes, and it contains every merge
+# before it.
+concurrency:
+  group: deploy-server
+
+jobs:
+  deploy:
+    name: Deploy to Fly
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # The token lives in this environment, which only `main` can use.
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
+        with:
+          version: 0.4.114
+      # --ha=false keeps one machine, because the rate limiters are in memory (see NOTES.md).
+      - run: flyctl deploy --remote-only --ha=false
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

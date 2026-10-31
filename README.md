@@ -69,5 +69,5 @@ npm run cards:eval -- --model <id> --batches 5   # real model, spends OpenRouter
 - `src/game/` and `src/cards/` are pure TypeScript: the rules, serve order, rematches, streaks, scoring and `normalize`, plus the starter deck.
 - `src/server/` is server-only: the prompt, plan, rate limits, validation, card source and handlers. It is imported only by `+api.ts` files.
 - `src/components/`, `src/store/` and `src/lib/` are the UI, the persisted zustand store, and the NDJSON client.
-- `server.js`, `Dockerfile` and `fly.toml` are the server's deploy files. Deploying the server is a manual step (see NOTES.md).
+- `server.js`, `Dockerfile` and `fly.toml` are the server's deploy files. `.github/workflows/deploy-server.yml` deploys the server to Fly on each merge to `main`, once the one-time setup in NOTES.md is done.
 - `.eas/workflows/deploy-ios.yml` ships iOS to TestFlight or over the air on each merge to `main`, once the one-time setup in NOTES.md is done.

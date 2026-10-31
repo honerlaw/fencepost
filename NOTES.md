@@ -8,7 +8,7 @@ Native builds resolve relative `fetch('/api/...')` calls against the `origin` of
 ["expo-router", { "origin": "https://fencepost.fly.dev" }]
 ```
 
-`https://fencepost.fly.dev` is a guess until `fly launch` assigns the app name. If Fly gives a different hostname, change it here and rebuild the native app; a wrong value silently breaks generated cards on native, though web is unaffected. In development the dev server serves the API, so nothing needs changing.
+The Fly app is named `fencepost`, so this hostname is right. If the app is ever renamed, change it here and rebuild the native app; a wrong value silently breaks generated cards on native, though web is unaffected. In development the dev server serves the API, so nothing needs changing.
 
 ## React Compiler
 
@@ -51,7 +51,7 @@ Costs are calculated from token counts and OpenRouter's list prices at the time.
 
 `.eas/workflows/deploy-ios.yml` runs on every push to `main`. It hashes the native side of the app. If no production build has that hash, it builds and uploads to TestFlight. If one does, it publishes an over-the-air update to the `production` branch, which only builds with that same hash download.
 
-**Generated cards need the Fly server.** `https://fencepost.fly.dev` isn't deployed, so until step 3 of "Not done by this run" is finished, a TestFlight build shows the bundled starter deck and generated batches fail. Device testing covers native config, gestures, haptics and storage until then.
+**Generated cards need the Fly server.** Until `https://fencepost.fly.dev` is deployed (see "Deploying the server"), a TestFlight build shows the bundled starter deck and generated batches fail. Device testing covers native config, gestures, haptics and storage until then.
 
 ### One-time setup
 
@@ -66,7 +66,7 @@ Everything here goes through the EAS CLI except linking GitHub, which it has no 
    ```
 5. **No CLI command:** on expo.dev, connect your GitHub user under **User settings > Connections**, install the Expo GitHub App, and link `honerlaw/fencepost` under **Project settings > GitHub**.
 6. Install the TestFlight app on your phone, signed in with an Apple ID that's an admin on the team. `eas submit` sets up the group: if the app has no TestFlight groups, it creates an internal one called `Team (Expo)` with access to all builds and adds the team's admins. To add anyone else, add them to that group in App Store Connect.
-7. Merge the `ascAppId` PR. `ascAppId` doesn't change the hash, so step 2's build still matches and this merge publishes an update. That's the first real test of the trigger, which nothing has exercised yet. The workflow's own build and upload path gets its first run at the next native change.
+7. Merge the `ascAppId` PR. `ascAppId` doesn't change the hash, so step 2's build still matches and this merge publishes an update. That's the first real test of the trigger. **It didn't fire:** PR #6 merged on 2026-10-31 and EAS recorded no `deploy-ios` run, so step 5 looks unfinished. EAS CLI can't show the link, so check it on expo.dev. The workflow's own build and upload path gets its first run at the next native change.
 8. On the first build, check that progress survives a restart (SQLite). Once the Fly server exists, check that a generated batch arrives, which proves the router `origin`.
 
 Signing credentials and the App Store Connect API key live on EAS, not in Doppler, because EAS has to hold them to sign and upload. They're the one exception to "all secrets live in Doppler". None of them reach this repo or GitHub, and the workflow uses no token.
@@ -86,14 +86,52 @@ Signing credentials and the App Store Connect API key live on EAS, not in Dopple
 - **The build worked but the upload failed.** This one is easy to miss: later merges find the build and publish updates, while TestFlight never gets the binary. Copy the build ID from the failed run and run `npx eas-cli@latest submit --platform ios --id <build id>` from a checkout that has `ascAppId`. Don't use `--latest`, which can pick a simulator build.
 - **The build expired.** TestFlight builds last 90 days, and JavaScript-only merges don't renew them. Run `npm ci`, then `npx eas-cli@latest build --platform ios --profile production --auto-submit`.
 
+## Deploying the server
+
+`.github/workflows/deploy-server.yml` runs `flyctl deploy --remote-only --ha=false` on every push to `main`. It's separate from the iOS workflow, and the two run at the same time, so a merge can reach the server before it reaches the phone, or the other way round. Older builds stay in use too, so `/api/cards` changes have to stay compatible with them.
+
+### One-time setup
+
+The Fly app `fencepost` already exists, in the personal org, because `onerlaw-llc` has overdue invoices and Fly refused to create it there. After clearing those, `fly apps move fencepost --org onerlaw-llc` moves it.
+
+Finish these before merging the workflow, because the merge is the first production deploy:
+
+1. **Set a hard credit limit on the OpenRouter key.** Once deployed, `/api/cards` is public and spends that credit.
+2. Copy the runtime secrets to Fly. Don't add `FLY_API_TOKEN` to `prd`, because a Doppler sync to Fly would hand the app its own deploy token.
+   ```sh
+   doppler secrets download --project fencepost --config prd --no-file --format docker | grep -v '^DOPPLER_' | fly secrets import -a fencepost --stage
+   ```
+3. Create a deploy token limited to this app, and keep it in the `prd_ci` Doppler branch config.
+   ```sh
+   doppler configs create prd_ci --project fencepost --environment prd
+   fly tokens create deploy -a fencepost -n github-actions -x 8760h | tr -d '\n' | doppler secrets set FLY_API_TOKEN --project fencepost --config prd_ci --silent >/dev/null
+   ```
+4. Create the GitHub environment, restrict it to `main`, and give it the token.
+   ```sh
+   gh api -X PUT repos/honerlaw/fencepost/environments/production --input - <<< '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
+   gh api -X POST repos/honerlaw/fencepost/environments/production/deployment-branch-policies -f name=main -f type=branch
+   doppler secrets get FLY_API_TOKEN --plain --project fencepost --config prd_ci | gh secret set FLY_API_TOKEN --env production --repo honerlaw/fencepost
+   ```
+5. After the first deploy, check `https://fencepost.fly.dev/api/health`, then run `fly logs -a fencepost` to watch the `{"event":"batch",...}` lines.
+
+### Day to day
+
+- **Which version is live:** `fly releases -a fencepost` lists them. Each deploy replaces the single machine, so in-flight card streams drop and the in-memory rate limits reset.
+- **Roll back:** revert the PR. The merge deploys the old code. For something faster, run `fly deploy --image <image from fly releases --image> --ha=false`.
+- **Run exactly one machine** until the rate limits move to Redis (see the "Rate-limit state" row above). `fly.toml` can't enforce this: `min_machines_running = 1` is a floor, so the workflow passes `--ha=false`. If two machines exist, run `fly scale count 1`.
+
+### When something goes wrong
+
+- **A failed deploy never blocks merging.** It shows on `main`'s Actions tab, and `ci-required` doesn't depend on it. Fix it, then re-run the job or merge again.
+- **Deploys fail with an auth error.** The token expires after a year. Rerun the token command from step 3, then the last command from step 4.
+
 ## Not done by this run: user-run steps
 
 These were left undone on purpose. Most need your accounts, money or hardware, or are outward-facing.
 
 1. **Keep checking card correctness. This is the most important step.** The model is chosen (see "Card model" above), but correctness rests on 50 hand-checked cards. Spot-check generated cards during real play, and rerun `npm run cards:eval -- --model <id> --batches 5` and read every card after changing the prompt or the model. The automated tests cover only the plumbing, validation and streaming, using a mock model and a local fake OpenRouter.
 2. **OpenRouter key and credit limit.** Set a hard credit limit on the key in the OpenRouter dashboard as the cost backstop.
-3. **Fly.io.** Nothing was deployed. When you're ready: `fly launch --no-deploy` (accept the Dockerfile, no database) → connect the Doppler project to the Fly app under **Syncs → Fly.io** in the Doppler dashboard, which keeps the secrets in step (or copy them once with `doppler secrets download --project fencepost --config prd --no-file --format docker | grep -v '^DOPPLER_' | fly secrets import`; the `docker` format matters because `env` wraps values in quotes) → `fly deploy --ha=false` → check `https://<app>.fly.dev/api/health` → `fly logs` to watch the `{"event":"batch",...}` lines. If the app name isn't `fencepost`, update the `origin` above.
-   - **Run exactly one machine** until the rate limits move to Redis (see the "Rate-limit state" row above). `fly.toml` can't enforce this: `min_machines_running = 1` is a floor, and without `--ha=false` the first `fly deploy` starts two machines. Later `fly deploy` runs keep the current count, so the flag matters only on the first deploy or after scaling to zero. If two machines already exist, run `fly scale count 1`.
+3. **Fly.io.** The app exists but nothing is deployed. Finish the one-time setup under "Deploying the server", then merge the workflow.
 4. **A production native build against Fly.** Play a generated batch in a release build pointed at the deployed server.
 5. **iOS development build.** A Release simulator build compiled on EAS on 2026-10-31 (build `8cd5fd36`, Xcode 27.1) and launched on the iOS 26.3 simulator to the starter deck, with the fonts and styling intact. That proves the compile, the plugins that run at build time and the `expo-updates` config. Still untested: a device-signed build, and a debug development build.
    - `npx expo run:ios` needs **Xcode 26.4+** (SDK 58's requirement). With Xcode 26.2 it fails inside Expo's own native code, not app code:
