@@ -59,7 +59,9 @@ export async function readBody(request: Request, limit: number): Promise<Parsed<
       if (done) break;
       size += value.byteLength;
       if (size > limit) {
-        await reader.cancel().catch(() => {});
+        await reader.cancel().catch(() => {
+          // The answer is already decided; a failed cancel changes nothing.
+        });
         return TOO_LARGE;
       }
       chunks.push(value);

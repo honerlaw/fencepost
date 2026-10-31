@@ -4,7 +4,7 @@ import { Text, YStack } from 'tamagui';
 
 const TOAST_MS = 2600;
 
-function Toast({ id, text, onDone }: { id: number; text: string; onDone: (id: number) => void }) {
+function Toast({ id, text, onDone }: Readonly<{ id: number; text: string; onDone: (id: number) => void }>) {
   useEffect(() => {
     const t = setTimeout(() => onDone(id), TOAST_MS);
     return () => clearTimeout(t);
@@ -20,7 +20,10 @@ function Toast({ id, text, onDone }: { id: number; text: string; onDone: (id: nu
   );
 }
 
-export function Toasts({ toasts, onDone }: { toasts: { id: number; text: string }[]; onDone: (id: number) => void }) {
+export function Toasts({
+  toasts,
+  onDone,
+}: Readonly<{ toasts: { id: number; text: string }[]; onDone: (id: number) => void }>): React.ReactNode {
   return (
     <YStack
       testID="toasts"

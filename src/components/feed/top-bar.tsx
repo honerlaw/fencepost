@@ -5,7 +5,7 @@ import { useNow } from '@/components/ui/use-now';
 import { displayStreak, localDay, multiplierFor, rankFor } from '@/game/rules';
 import type { Progress } from '@/game/types';
 
-function Pill({ label, tone }: { label: string; tone: 'gold' | 'plain' }) {
+function Pill({ label, tone }: Readonly<{ label: string; tone: 'gold' | 'plain' }>) {
   return (
     <YStack
       px="$2"
@@ -24,7 +24,11 @@ function Pill({ label, tone }: { label: string; tone: 'gold' | 'plain' }) {
 
 const xpFormat = new Intl.NumberFormat('en-US');
 
-export function TopBar({ progress, combo, onMenu }: { progress: Progress; combo: number; onMenu: () => void }) {
+export function TopBar({
+  progress,
+  combo,
+  onMenu,
+}: Readonly<{ progress: Progress; combo: number; onMenu: () => void }>): React.ReactNode {
   const now = useNow();
   const rank = rankFor(progress.xp);
   const streak = displayStreak(progress.streak, progress.lastDay, localDay(new Date(now)));

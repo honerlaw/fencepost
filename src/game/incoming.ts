@@ -51,7 +51,6 @@ export function normalizeGenerated(input: unknown): PlayedCard | null {
   if (!parsed.success) return null;
   const card = parsed.data;
   if (card.type === 'flaw' && card.answer >= card.code.length) return null;
-  if ((card.type === 'break' || card.type === 'trace' || card.type === 'model') && card.answer >= card.options.length)
-    return null;
+  if ('options' in card && card.answer >= card.options.length) return null;
   return card;
 }

@@ -36,7 +36,7 @@ export function localDay(date: Date): string {
 }
 
 export function previousDay(day: string): string {
-  const [y, m, d] = day.split('-').map(Number);
+  const [y = 0, m = 1, d = 1] = day.split('-').map(Number);
   return localDay(new Date(y, m - 1, d - 1));
 }
 
@@ -87,11 +87,17 @@ export interface RankInfo {
 
 export function rankFor(xp: number): RankInfo {
   let index = 0;
-  for (let i = 0; i < RANKS.length; i++) if (xp >= RANKS[i].xp) index = i;
-  const floor = RANKS[index].xp;
-  const next = index + 1 < RANKS.length ? RANKS[index + 1].xp : null;
+  let rank: (typeof RANKS)[number] = RANKS[0];
+  for (const [i, candidate] of RANKS.entries()) {
+    if (xp >= candidate.xp) {
+      index = i;
+      rank = candidate;
+    }
+  }
+  const floor = rank.xp;
+  const next = RANKS[index + 1]?.xp ?? null;
   const progress = next == null ? 1 : (xp - floor) / (next - floor);
-  return { name: RANKS[index].name, index, floor, next, progress };
+  return { name: rank.name, index, floor, next, progress };
 }
 
 // ---- Verdicts, haptics, celebrations ----

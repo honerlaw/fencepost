@@ -57,7 +57,7 @@ function approxLength(rx: number, ry: number): number {
 }
 
 /** Hand-drawn red loop around `box`, drawn over about 0.55 s (instantly with reduce motion). */
-export function MarkerCircle({ box }: { box: Box }) {
+export function MarkerCircle({ box }: Readonly<{ box: Box }>): React.ReactNode {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
   const { rx, ry } = radii(box);
@@ -87,7 +87,7 @@ export function MarkerCircle({ box }: { box: Box }) {
     >
       <AnimatedPath
         d={loopPath(rx, ry)}
-        stroke={theme.red?.val}
+        stroke={theme.red.val}
         strokeWidth={STROKE}
         strokeLinecap="round"
         fill="none"

@@ -8,5 +8,5 @@ export function apiUrl(
   path: string,
   origin: string | undefined = (globalThis as { location?: { origin?: string } }).location?.origin,
 ): string {
-  return origin ? new URL(path, origin).toString() : path;
+  return origin == null || origin === '' ? path : new URL(path, origin).toString();
 }

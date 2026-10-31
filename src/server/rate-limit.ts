@@ -13,6 +13,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Keys kept per limiter; past this the least recently used key is dropped. */
 export const MAX_KEYS = 50_000;
 
+export interface RateLimiter {
+  check: (key: string) => LimitResult;
+  take: (key: string) => LimitResult;
+  size: () => number;
+}
+
 interface Bucket {
   tokens: number;
   updated: number;
@@ -24,7 +30,7 @@ interface Bucket {
  * In-memory token buckets, one per key. Per machine only: with more than one machine
  * these move to Redis (handoff §11).
  */
-export function createRateLimiter(rule: BucketRule, now: () => number = Date.now) {
+export function createRateLimiter(rule: BucketRule, now: () => number = Date.now): RateLimiter {
   // Map order is recency order: a key is re-inserted on every use, so the first key is the stalest.
   const buckets = new Map<string, Bucket>();
 
@@ -65,14 +71,15 @@ export function createRateLimiter(rule: BucketRule, now: () => number = Date.now
     }
     buckets.delete(key);
     buckets.set(key, b);
-    while (buckets.size > MAX_KEYS) buckets.delete(buckets.keys().next().value!);
+    for (const stalest of buckets.keys()) {
+      if (buckets.size <= MAX_KEYS) break;
+      buckets.delete(stalest);
+    }
     return result;
   }
 
   return { check, take, size: () => buckets.size };
 }
-
-export type RateLimiter = ReturnType<typeof createRateLimiter>;
 
 /**
  * Checks every limiter first and consumes from all of them only when all allow it,

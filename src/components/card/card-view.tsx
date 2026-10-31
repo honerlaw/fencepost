@@ -9,7 +9,7 @@ import { TYPE_LABEL } from './labels';
 import { Options } from './options';
 import { OrderSteps } from './order-steps';
 
-function Badge({ label, tone }: { label: string; tone: 'gold' | 'blue' }) {
+function Badge({ label, tone }: Readonly<{ label: string; tone: 'gold' | 'blue' }>) {
   return (
     <YStack px="$2" py={2} rounded="$2" bg={tone === 'gold' ? '$goldWash' : '$blueWash'}>
       <Text
@@ -29,11 +29,11 @@ function Body({
   card,
   result,
   onAnswer,
-}: {
+}: Readonly<{
   card: PlayedCard;
   result: AnswerResult | null;
   onAnswer: (picked: number | number[]) => void;
-}) {
+}>) {
   const picked = result?.picked;
   switch (card.type) {
     case 'flaw': {
@@ -60,7 +60,7 @@ function Body({
     case 'trace': {
       return (
         <YStack gap="$3">
-          {card.input ? (
+          {card.input != null && card.input !== '' ? (
             <YStack p="$3" rounded="$3" bg="$blueWash" gap="$1">
               <Text
                 fontFamily="$body"
@@ -110,7 +110,7 @@ interface CardViewProps {
   onSkip: () => void;
 }
 
-export function CardView({ card, result, onAnswer, onSkip }: CardViewProps) {
+export function CardView({ card, result, onAnswer, onSkip }: Readonly<CardViewProps>): React.ReactNode {
   const face = (
     <YStack
       testID="card"
@@ -133,8 +133,8 @@ export function CardView({ card, result, onAnswer, onSkip }: CardViewProps) {
           {TYPE_LABEL[card.type]} · {domainName(card.domain)}
         </Text>
         {card.boss ? <Badge label="Boss · 3x" tone="gold" /> : null}
-        {card.double ? <Badge label="2x points" tone="gold" /> : null}
-        {card.rematch ? <Badge label="Rematch" tone="blue" /> : null}
+        {card.double === true ? <Badge label="2x points" tone="gold" /> : null}
+        {card.rematch === true ? <Badge label="Rematch" tone="blue" /> : null}
       </XStack>
       <Text role="heading" fontFamily="$display" fontWeight="800" fontSize="$8" lineHeight="$8" color="$ink">
         {card.title}

@@ -7,20 +7,21 @@
 //   OPENROUTER_BASE_URL=http://127.0.0.1:8790/api/v1 OPENROUTER_API_KEY=stub CARD_MODEL=stub/model node server.js
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { buffer } from 'node:stream/consumers';
 
 const port = Number(process.env.STUB_PORT ?? 8790);
 const firstDelayMs = Number(process.env.STUB_FIRST_DELAY_MS ?? 11_000);
 const chunkDelayMs = Number(process.env.STUB_CHUNK_DELAY_MS ?? 30);
 const cards = JSON.parse(readFileSync(new URL('stub-cards.json', import.meta.url), 'utf8'));
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 createServer(async (req, res) => {
   if (req.method !== 'POST' || !req.url?.endsWith('/chat/completions')) {
     res.writeHead(404).end();
     return;
   }
-  for await (const _ of req); // drain the request body
+  await buffer(req); // drain the request body
   const id = `stub-${Date.now()}`;
   const chunk = (delta, finish = null, extra = {}) =>
     `data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created: Math.floor(Date.now() / 1000), model: 'stub/model', choices: [{ index: 0, delta, finish_reason: finish }], ...extra })}\n\n`;

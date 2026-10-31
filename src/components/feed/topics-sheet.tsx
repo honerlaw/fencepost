@@ -7,7 +7,7 @@ import { DOMAIN_IDS, DOMAINS } from '@/cards/domains';
 import { Tap } from '@/components/ui/tap';
 import type { DomainId, Progress } from '@/game/types';
 
-function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+function Chip({ label, on, onPress }: Readonly<{ label: string; on: boolean; onPress: () => void }>) {
   return (
     <Tap
       label={label}
@@ -27,7 +27,7 @@ function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () 
   );
 }
 
-function Stat({ testID, label, value }: { testID: string; label: string; value: string }) {
+function Stat({ testID, label, value }: Readonly<{ testID: string; label: string; value: string }>) {
   return (
     <YStack flex={1} minW={120} p="$3" rounded="$3" bg="$wash" gap={2}>
       <Text testID={testID} fontFamily="$mono" fontWeight="700" fontSize="$6" color="$ink">
@@ -52,7 +52,7 @@ interface TopicsSheetProps {
   onClose: () => void;
 }
 
-export function TopicsSheet({ progress, onChange, onClose }: TopicsSheetProps) {
+export function TopicsSheet({ progress, onChange, onClose }: Readonly<TopicsSheetProps>): React.ReactNode {
   const insets = useSafeAreaInsets();
   const selected = progress.domains;
   const accuracy = progress.answered === 0 ? '–' : `${Math.round((progress.correct / progress.answered) * 100)}%`;

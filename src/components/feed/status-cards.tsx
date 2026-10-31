@@ -7,7 +7,7 @@ import type { FetchErrorCode } from '@/game/fetch-policy';
 import { displayStreak, localDay, rankFor } from '@/game/rules';
 import type { Progress } from '@/game/types';
 
-function Frame({ testID, children }: { testID: string; children: React.ReactNode }) {
+function Frame({ testID, children }: Readonly<{ testID: string; children: React.ReactNode }>) {
   return (
     <YStack testID={testID} bg="$card" rounded="$5" borderWidth={1} borderColor="$rule" p="$5" gap="$3">
       {children}
@@ -15,7 +15,7 @@ function Frame({ testID, children }: { testID: string; children: React.ReactNode
   );
 }
 
-function Eyebrow({ children }: { children: string }) {
+function Eyebrow({ children }: Readonly<{ children: string }>) {
   return (
     <Text fontFamily="$body" fontWeight="700" fontSize={12} letterSpacing={1} color="$blue" textTransform="uppercase">
       {children}
@@ -23,7 +23,7 @@ function Eyebrow({ children }: { children: string }) {
   );
 }
 
-function Title({ children }: { children: string }) {
+function Title({ children }: Readonly<{ children: string }>) {
   return (
     <Text role="heading" fontFamily="$display" fontWeight="800" fontSize="$8" lineHeight="$8" color="$ink">
       {children}
@@ -31,7 +31,7 @@ function Title({ children }: { children: string }) {
   );
 }
 
-function Button({ label, onPress }: { label: string; onPress: () => void }) {
+function Button({ label, onPress }: Readonly<{ label: string; onPress: () => void }>) {
   return (
     <Tap label={label} onPress={onPress} bg="$ink" rounded="$4" py="$3" items="center">
       <Text fontFamily="$display" fontWeight="800" fontSize="$5" color="$card">
@@ -41,7 +41,7 @@ function Button({ label, onPress }: { label: string; onPress: () => void }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <YStack flex={1} minW={120} p="$3" rounded="$3" bg="$wash" gap={2}>
       <Text fontFamily="$mono" fontWeight="700" fontSize="$6" color="$ink">
@@ -54,7 +54,10 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function WelcomeCard({ progress, onDealIn }: { progress: Progress; onDealIn: () => void }) {
+export function WelcomeCard({
+  progress,
+  onDealIn,
+}: Readonly<{ progress: Progress; onDealIn: () => void }>): React.ReactNode {
   const now = useNow();
   const streak = displayStreak(progress.streak, progress.lastDay, localDay(new Date(now)));
   return (
@@ -72,12 +75,12 @@ export function WelcomeCard({ progress, onDealIn }: { progress: Progress; onDeal
   );
 }
 
-export function LoadingCard({ since, domain }: { since: number; domain: string | null }) {
+export function LoadingCard({ since, domain }: Readonly<{ since: number; domain: string | null }>): React.ReactNode {
   const now = useNow(1000);
   const seconds = Math.max(0, Math.floor((now - since) / 1000));
   return (
     <Frame testID="loading">
-      <Eyebrow>{domain && isDomainId(domain) ? domainName(domain) : 'Fresh puzzles'}</Eyebrow>
+      <Eyebrow>{domain != null && isDomainId(domain) ? domainName(domain) : 'Fresh puzzles'}</Eyebrow>
       <Title>Shuffling the deck</Title>
       <Text fontFamily="$body" fontSize="$5" color="$ink">
         Writing new cards… <Text fontFamily="$mono">{seconds}s</Text>
@@ -97,7 +100,7 @@ const ERROR_TEXT: Record<FetchErrorCode, string> = {
   bad_request: 'That request was rejected.',
 };
 
-export function ErrorCard({ code, onRetry }: { code: FetchErrorCode; onRetry: () => void }) {
+export function ErrorCard({ code, onRetry }: Readonly<{ code: FetchErrorCode; onRetry: () => void }>): React.ReactNode {
   return (
     <Frame testID="error">
       <Eyebrow>Out of cards</Eyebrow>

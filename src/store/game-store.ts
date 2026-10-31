@@ -74,12 +74,17 @@ export interface GameStore {
 /** How many recent titles go to the server. */
 export const RECENT_SENT = 20;
 
+const beforeHydration = () => {
+  // Replaced as soon as the store exists; see createGameStore.
+};
+
 export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
   let controller: AbortController | null = null;
   let lastStart = -Infinity;
   let toastId = 0;
   // Hydration can finish synchronously inside createStore, before `store` is assigned.
-  let markHydrated = () => {};
+  let markHydrated = beforeHydration;
+  const onHydrated = () => markHydrated();
   const d = (): Deps => ({ now: deps.now(), rng: deps.rng });
 
   return createStore<GameStore>()(
@@ -146,8 +151,8 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
               )
               // A stream that closes without `done` was cut off.
               .then((outcome) => fail(outcome.ok ? 'network' : outcome.code))
-              .catch(() => fail('network'))
-              .finally(() => clearTimeout(deadline));
+              .finally(() => clearTimeout(deadline))
+              .catch(() => fail('network'));
           };
           if (delay > 0) setTimeout(start, delay);
           else start();
@@ -206,7 +211,7 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
           dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
           cancelFetch: () => {
             const game = get().game;
-            if (!controller || !game?.fetch.inFlight) return;
+            if (!controller || game?.fetch.inFlight !== true) return;
             controller.abort();
             controller = null;
             commit(batchCancelled(game, d()));
@@ -218,7 +223,7 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
         version: 1,
         storage: createJSONStorage(() => deps.storage),
         partialize: (s) => ({ progress: s.progress }),
-        onRehydrateStorage: () => () => markHydrated(),
+        onRehydrateStorage: () => onHydrated,
       },
     ),
   );

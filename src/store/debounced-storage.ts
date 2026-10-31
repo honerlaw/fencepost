@@ -12,7 +12,7 @@ export function debounceStorage(storage: StateStorage, delayMs: number): Debounc
 
   /** Never rejects: a failed write is kept (unless a newer one arrived) and retried on the next flush. */
   const flush = async () => {
-    if (timer) clearTimeout(timer);
+    if (timer != null) clearTimeout(timer);
     timer = null;
     if (!pending) return;
     const write = pending;
@@ -29,8 +29,12 @@ export function debounceStorage(storage: StateStorage, delayMs: number): Debounc
     removeItem: (name) => storage.removeItem(name),
     setItem: (name, value) => {
       pending = { name, value };
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => void flush(), delayMs);
+      if (timer != null) clearTimeout(timer);
+      timer = setTimeout(() => {
+        flush().catch(() => {
+          // flush never rejects: it keeps a failed write for the next one.
+        });
+      }, delayMs);
     },
     flush,
   };

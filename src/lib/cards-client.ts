@@ -2,7 +2,8 @@ import { fetch } from 'expo/fetch';
 
 import { errorCodeForStatus } from '@/game/fetch-policy';
 import type { BatchEvent } from '@/game/engine';
-import type { Card, PlayedCard } from '@/game/types';
+import { plainCard } from '@/game/plain-card';
+import type { Card } from '@/game/types';
 import type { FetchBatch } from '@/store/game-store';
 import { apiUrl } from './api-url';
 import { asBatchEvent, readNdjson } from './ndjson';
@@ -35,10 +36,11 @@ export const fetchBatch: FetchBatch = async (req, onEvent, signal) => {
 /** Reports a card the player says was wrong. Best effort: failures are ignored. */
 export function reportCard(deviceId: string, card: Card): void {
   // Serve-time flags are the client's business, not part of the card.
-  const { double: _double, rematch: _rematch, starter: _starter, ...plain } = card as PlayedCard;
   fetch(apiUrl('/api/flag'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ deviceId, card: plain, reason: 'wrong' }),
-  }).catch(() => {});
+    body: JSON.stringify({ deviceId, card: plainCard(card), reason: 'wrong' }),
+  }).catch(() => {
+    // Best effort: a lost report costs nothing.
+  });
 }

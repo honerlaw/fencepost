@@ -7,21 +7,21 @@ import type { StateStorage } from 'zustand/middleware';
 export const platformStorage: StateStorage = {
   getItem: (name) => {
     try {
-      return globalThis.localStorage?.getItem(name) ?? null;
+      return globalThis.localStorage.getItem(name);
     } catch {
       return null;
     }
   },
   setItem: (name, value) => {
     try {
-      globalThis.localStorage?.setItem(name, value);
+      globalThis.localStorage.setItem(name, value);
     } catch {
       // Progress just won't persist this session.
     }
   },
   removeItem: (name) => {
     try {
-      globalThis.localStorage?.removeItem(name);
+      globalThis.localStorage.removeItem(name);
     } catch {
       // Nothing to remove.
     }

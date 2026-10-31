@@ -50,7 +50,7 @@ export function fetchStarted(fetch: FetchState, decision: FetchDecision | 'manua
     domain: null,
     // A manual retry clears the error; an auto retry keeps the streak's budget spent.
     error: decision === 'manual' ? null : fetch.error,
-    autoRetryUsed: decision === 'auto-retry' ? true : decision === 'manual' ? false : fetch.autoRetryUsed,
+    autoRetryUsed: decision === 'auto-retry' || (decision !== 'manual' && fetch.autoRetryUsed),
     received: 0,
   };
 }

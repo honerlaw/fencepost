@@ -12,14 +12,23 @@ import { appFonts } from '@/theme/fonts';
 import { palettes } from '@/theme/colors';
 import { tamaguiConfig } from '../../tamagui.config';
 
-SplashScreen.preventAutoHideAsync();
+function holdSplash(): void {
+  SplashScreen.preventAutoHideAsync().catch(() => {
+    // Too late to hold the splash (a fast refresh, say): it just hides early.
+  });
+}
+
+holdSplash();
 
 // During hydration React reads the server snapshot (false), then re-renders with the client one.
-const noSubscribe = () => () => {};
+const noUnsubscribe = () => {
+  // Nothing was subscribed.
+};
+const noSubscribe = () => noUnsubscribe;
 const isClient = () => true;
 const isServer = () => false;
 
-export default function RootLayout() {
+export default function RootLayout(): React.ReactNode {
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const [fontsLoaded, fontError] = useFonts(appFonts);
   // On web the server render can't know the color scheme or the saved progress, and
@@ -28,7 +37,11 @@ export default function RootLayout() {
   const ready = (fontsLoaded || fontError != null) && mounted;
 
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync();
+    if (ready) {
+      SplashScreen.hideAsync().catch(() => {
+        // Already hidden.
+      });
+    }
   }, [ready]);
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: palettes[scheme].board }} />;

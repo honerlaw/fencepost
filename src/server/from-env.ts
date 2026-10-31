@@ -15,17 +15,21 @@ function intEnv(env: Record<string, string | undefined>, name: string, fallback:
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
+function isSet(value: string | undefined): value is string {
+  return value != null && value !== '';
+}
+
 /**
  * Builds the handlers from environment variables. expo-server doesn't load .env files,
  * so everything comes from the real environment (Fly secrets in production).
  */
 export function handlersFromEnv(env: Record<string, string | undefined> = process.env): Handlers {
-  const apiKey = env.OPENROUTER_API_KEY;
-  const models = [env.CARD_MODEL, env.CARD_MODEL_FALLBACK].filter((m): m is string => !!m);
-  const configured = !!apiKey && !!env.CARD_MODEL;
-  const openrouter = configured
-    ? createOpenRouter({ apiKey, ...(env.OPENROUTER_BASE_URL ? { baseURL: env.OPENROUTER_BASE_URL } : {}) })
-    : null;
+  const apiKey = env['OPENROUTER_API_KEY'];
+  const model = env['CARD_MODEL'];
+  const baseURL = env['OPENROUTER_BASE_URL'];
+  const models = [model, env['CARD_MODEL_FALLBACK']].filter((m) => isSet(m));
+  const openrouter =
+    isSet(apiKey) && isSet(model) ? createOpenRouter({ apiKey, ...(isSet(baseURL) ? { baseURL } : {}) }) : null;
 
   return createHandlers({
     source: openrouter
@@ -38,7 +42,7 @@ export function handlersFromEnv(env: Record<string, string | undefined> = proces
         })
       : null,
     batchSize: intEnv(env, 'BATCH_SIZE', 5),
-    behindFly: !!env.FLY_APP_NAME,
+    behindFly: isSet(env['FLY_APP_NAME']),
     limits: {
       // One batch per 20 s and 60 a day per device; a shared IP (an office, a carrier NAT) gets more room.
       cardsDevice: createRateLimiter({

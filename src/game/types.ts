@@ -30,7 +30,7 @@ export type BreakCard = CardBase & { type: 'break'; code: string[]; options: str
 export type TraceCard = CardBase & {
   type: 'trace';
   code: string[];
-  input?: string;
+  input?: string | undefined;
   options: string[];
   answer: number;
 };

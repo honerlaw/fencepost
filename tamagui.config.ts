@@ -83,5 +83,6 @@ export default tamaguiConfig;
 export type Conf = typeof tamaguiConfig;
 
 declare module 'tamagui' {
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- module augmentation: Tamagui reads its config type from this interface.
   interface TamaguiCustomConfig extends Conf {}
 }

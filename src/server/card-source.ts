@@ -48,9 +48,18 @@ const element = jsonSchema(() => zodSchema(RawCardSchema).jsonSchema, {
   validate: (value) => ({ success: true, value }),
 });
 
+function asText(error: unknown): string {
+  return String(error);
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(asText(error));
+}
+
 export function createLiveCardSource(opts: LiveSourceOptions): CardSource {
   async function run(modelId: string, params: BatchParams, onCard: (card: Card) => void): Promise<BatchStats> {
-    let failure: unknown = null;
+    // Set from the onError callback.
+    const stream: { failure: unknown } = { failure: null };
     const result = streamText({
       model: opts.languageModel(modelId),
       output: Output.array({ element, maxItems: params.plan.length }),
@@ -59,7 +68,7 @@ export function createLiveCardSource(opts: LiveSourceOptions): CardSource {
       maxOutputTokens: opts.maxOutputTokens,
       maxRetries: 0,
       onError: ({ error }) => {
-        failure = error;
+        stream.failure = error;
       },
     });
     let index = 0;
@@ -77,9 +86,9 @@ export function createLiveCardSource(opts: LiveSourceOptions): CardSource {
       onCard(card);
       sent++;
     }
-    if (failure && !params.signal.aborted) {
-      if (sent === 0) throw new ModelFailedError(String(failure));
-      throw failure;
+    if (stream.failure != null && !params.signal.aborted) {
+      if (sent === 0) throw new ModelFailedError(asText(stream.failure));
+      throw toError(stream.failure);
     }
     // A model that answered but produced nothing playable failed too, before any card was sent.
     if (sent === 0 && !params.signal.aborted) throw new ModelFailedError(`no valid cards (${dropped} dropped)`);
@@ -92,7 +101,7 @@ export function createLiveCardSource(opts: LiveSourceOptions): CardSource {
 
   return {
     async getBatch(params, onCard) {
-      let lastError: unknown = null;
+      let lastError: Error | null = null;
       for (const modelId of opts.models) {
         try {
           return await run(modelId, params, onCard);

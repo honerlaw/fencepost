@@ -8,18 +8,24 @@ export interface LifecycleDeps {
   now: () => number;
 }
 
+export interface Lifecycle {
+  hidden: () => void;
+  visible: () => void;
+  dispose: () => void;
+}
+
 /**
  * What happens when the app is hidden and shown again: save straight away, and cancel a
  * batch that is still loading after more than a minute in the background. The timer
  * covers platforms that keep JS running; the elapsed-time check on return covers ones
  * that pause it.
  */
-export function createLifecycle(deps: LifecycleDeps) {
+export function createLifecycle(deps: LifecycleDeps): Lifecycle {
   let hiddenAt: number | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   const clear = () => {
-    if (timer) clearTimeout(timer);
+    if (timer != null) clearTimeout(timer);
     timer = null;
   };
 

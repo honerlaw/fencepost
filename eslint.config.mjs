@@ -283,7 +283,14 @@ export default defineConfig([
   // eslint-plugin-import cannot parse the ESM-only plugins this file imports.
   {
     files: ['eslint.config.mjs'],
-    rules: { 'import/namespace': 'off', 'import/no-unresolved': 'off', 'import/default': 'off', 'import/named': 'off' },
+    rules: {
+      'import/namespace': 'off',
+      'import/no-unresolved': 'off',
+      'import/default': 'off',
+      'import/named': 'off',
+      'import/no-named-as-default': 'off',
+      'import/no-named-as-default-member': 'off',
+    },
   },
 
   // Local-only code: these point at 127.0.0.1 stubs and read their own files.
@@ -308,7 +315,8 @@ export default defineConfig([
       'vitest/no-disabled-tests': 'error',
       'vitest/expect-expect': 'error',
       'vitest/no-conditional-tests': 'error',
-      'vitest/valid-expect': 'error',
+      // vitest accepts a failure message as expect's second argument.
+      'vitest/valid-expect': ['error', { maxArgs: 2 }],
       // A wrong assumption in a test fails that test by itself.
       '@typescript-eslint/no-non-null-assertion': 'off',
       // Test doubles are often empty on purpose.

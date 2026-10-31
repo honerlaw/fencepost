@@ -23,6 +23,6 @@ export function loadStarterDeck(rng: Rng): PlayedCard[] {
       newId: () => starterId(index),
     });
     if (!card) throw new Error(`Starter card ${index + 1} failed normalize`);
-    return { ...card, starter: true, ...(double ? { double: true } : {}) };
+    return { ...card, starter: true, ...(double === true ? { double: true } : {}) };
   });
 }

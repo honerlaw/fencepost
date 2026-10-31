@@ -1,4 +1,5 @@
 import { normalizeGenerated } from './incoming';
+import { plainCard } from './plain-card';
 import {
   celebrationsFor,
   hapticFor,
@@ -114,12 +115,6 @@ function withoutCard(missed: Card[], id: string): Card[] {
   return missed.filter((c) => c.id !== id);
 }
 
-/** Strips serve-time flags so the rematch queue stores plain cards. */
-function plainCard(card: PlayedCard): Card {
-  const { double: _double, rematch: _rematch, starter: _starter, ...rest } = card;
-  return rest;
-}
-
 /** Moves a card to the back of the rematch queue, dropping the oldest past the cap. */
 function toBack(missed: Card[], card: PlayedCard): Card[] {
   return [...withoutCard(missed, card.id), plainCard(card)].slice(-MAX_MISSED);
@@ -142,7 +137,7 @@ export function answer(state: GameState, picked: number | number[], deps: Deps):
   const card = slot.card;
   const correct = isCorrect(card, picked);
   const combo = correct ? state.combo + 1 : 0;
-  const score = scoreAnswer({ correct, boss: card.boss, double: !!card.double, combo });
+  const score = scoreAnswer({ correct, boss: card.boss, double: card.double === true, combo });
   const streak = updateStreak(state.progress, localDay(new Date(deps.now)));
   const wasMissed = state.progress.missed.some((c) => c.id === card.id);
 
@@ -150,7 +145,7 @@ export function answer(state: GameState, picked: number | number[], deps: Deps):
   if (!correct) missed = toBack(missed, card);
   else if (wasMissed) missed = withoutCard(missed, card.id);
 
-  const lastStarter = !!card.starter && state.starter.length === 0;
+  const lastStarter = card.starter === true && state.starter.length === 0;
   const progress: Progress = {
     ...state.progress,
     xp: state.progress.xp + score.points,
@@ -211,9 +206,9 @@ export function skip(state: GameState, deps: Deps): GameState {
   const card = slot.card;
   const progress: Progress = {
     ...state.progress,
-    missed: card.rematch ? toBack(state.progress.missed, card) : state.progress.missed,
+    missed: card.rematch === true ? toBack(state.progress.missed, card) : state.progress.missed,
     recent: pushRecent(state.progress.recent, card.title),
-    starterDone: state.progress.starterDone || (!!card.starter && state.starter.length === 0),
+    starterDone: state.progress.starterDone || (card.starter === true && state.starter.length === 0),
   };
   return advance({ ...state, progress, lastAnsweredId: card.id, sessionStarted: true }, deps);
 }
@@ -235,17 +230,15 @@ function serve(state: GameState, card: PlayedCard, isRematch: boolean): GameStat
  * queue → a rematch while waiting → a status card.
  */
 export function advance(state: GameState, deps: Deps): GameState {
-  if (!state.progress.starterDone && state.starter.length > 0) {
-    const [card, ...rest] = state.starter;
-    return serve({ ...state, starter: rest }, card, false);
-  }
+  const [starter, ...laterStarters] = state.starter;
+  if (!state.progress.starterDone && starter) return serve({ ...state, starter: laterStarters }, starter, false);
   const rematch = dueRematch(state);
   if (rematch && state.sinceRematch >= REMATCH_EVERY) {
     return serve(state, { ...rematch, rematch: true }, true);
   }
-  if (state.queue.length > 0) {
-    const [card, ...rest] = state.queue;
-    const served = rollDouble(card, deps.rng) ? { ...card, double: true } : card;
+  const [queued, ...rest] = state.queue;
+  if (queued) {
+    const served: PlayedCard = rollDouble(queued, deps.rng) ? { ...queued, double: true } : queued;
     return serve({ ...state, queue: rest }, served, false);
   }
   if (rematch) return serve(state, { ...rematch, rematch: true }, true);

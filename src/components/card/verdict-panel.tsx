@@ -5,7 +5,7 @@ import { Tap } from '@/components/ui/tap';
 import type { AnswerResult } from '@/game/engine';
 import type { PlayedCard } from '@/game/types';
 
-function Tag({ label }: { label: string }) {
+function Tag({ label }: Readonly<{ label: string }>) {
   return (
     <YStack px="$2" py={2} rounded="$2" bg="$goldWash">
       <Text fontFamily="$mono" fontWeight="700" fontSize={12} color="$goldInk">
@@ -22,7 +22,7 @@ interface VerdictPanelProps {
   onFlag: () => void;
 }
 
-export function VerdictPanel({ card, result, onNext, onFlag }: VerdictPanelProps) {
+export function VerdictPanel({ card, result, onNext, onFlag }: Readonly<VerdictPanelProps>): React.ReactNode {
   const { correct, score } = result;
   return (
     <Animated.View entering={FadeInDown.duration(280)}>

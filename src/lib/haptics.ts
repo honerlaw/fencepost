@@ -8,5 +8,7 @@ export function playHaptic(pattern: HapticPattern): void {
     pattern === 'light'
       ? Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
       : Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-  done.catch(() => {});
+  done.catch(() => {
+    // Devices without a haptic engine reject, and there is no fallback to offer.
+  });
 }

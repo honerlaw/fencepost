@@ -18,7 +18,7 @@ export const gameStore = createGameStore({
 });
 
 /** Writes pending progress now (backgrounding, page hide). */
-export const flushProgress = () => storage.flush();
+export const flushProgress = (): Promise<void> => storage.flush();
 
 export function useGame<T>(selector: (state: GameStore) => T): T {
   return useStore(gameStore, selector);
