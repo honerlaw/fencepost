@@ -18,3 +18,13 @@
     - fix: thresholds ratchet upward; overlaps stated; knowledge ids cited at derived rules
 - [reviewed — folded] whole-proposal (restart): first-wave review stale because the approach fold rewrote Success criteria. Folded goal reword, disabled-rule reporting criterion, explicit user gate, expo plugin redefinition risk, dependency-review resolution, guarded lefthook prepare (.git is dockerignored), PR-only cancel-in-progress, CI-only label check (tier: reviewer — provisional on the approach blast-radius clause, which was approved; parallel wave restart)
 - [rechecked — residual folded] whole-proposal: 10/11 addressed; item 10 is a non-issue (fencepost is honerlaw, plugin is onerlaw; git remote confirmed). Folded residuals: dependency-review config joins guardrail paths; criterion 2 says every exported rule rather than a count
+
+## Notes 2026-10-31
+
+- Baseline on main before this work: 137 tests in 14 files.
+- `eslint-plugin-vibe-proof@1.10.0` is third-party. Source reviewed: MIT, no install scripts, no network, exec or eval. The only `fetch` hit is a message string. Curated rule list only.
+- `expo install --dev` ran `lefthook install`, which wrote a stray `.git/hooks/prepare-commit-msg` into the shared `.git`. Removed after confirming it was lefthook's.
+- `prepare` is inline and guarded because the Docker build runs `npm ci` before source is copied and `.git` is dockerignored.
+- CI calls tools directly rather than through package.json scripts: `.github/` needs the label to change and package.json does not, so a script could otherwise be gutted without approval.
+- Dockerfile `USER node` became `USER 1000:1000` for hadolint DL3066. hadolint's default threshold fails on info findings, so this fix was preferred to lowering the threshold.
+- `.claude/settings.json` hook wiring is held back until the fork finishes, so hooks cannot fire on its in-progress edits.
