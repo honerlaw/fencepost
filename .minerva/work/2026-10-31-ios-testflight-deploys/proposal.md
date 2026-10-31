@@ -1,7 +1,7 @@
 # Proposal: ios-testflight-deploys
 
 **Date**: 2026-10-31
-**Status**: Draft
+**Status**: Shipped (2026-10-31)
 
 ## Goal
 
@@ -31,23 +31,17 @@ The app has only ever run in Expo Go on a simulator and on the web. No native bu
 
 ## Approach
 
-1. `npx expo install expo-updates`.
-2. `eas.json`: `cli.appVersionSource: remote`; `build.production`: `channel: production`, `autoIncrement: true`, default `auto` image; `build.simulator`: `ios.simulator: true`; `submit.production: {}`. No Node pin: the SDK 58 image's Node 22 runs the install.
-3. `app.json`: `runtimeVersion: { policy: "fingerprint" }`, `updates.url: https://u.expo.dev/<projectId>`, `ios.config.usesNonExemptEncryption: false`.
-4. `.eas/workflows/deploy-ios.yml` as above.
-5. Run `eas build --platform ios --profile simulator --non-interactive` from the worktree. This uploads the working copy to EAS and uses one build from the account's quota. Install the result on a local simulator and launch it. Fix what it surfaces.
-6. Check that adding `ascAppId` to `eas.json` leaves the iOS fingerprint unchanged (`eas fingerprint:generate` or `npx @expo/fingerprint`, before and after), and record the answer in the runbook.
-7. NOTES.md "Deploying to TestFlight" runbook, in order:
-   1. Merge this PR. Nothing runs, because the repo isn't linked.
-   2. Confirm a paid Apple Developer membership, then `npx eas-cli@latest credentials --platform ios`: production profile, signing, and the App Store Connect API key.
-   3. Create the app record in App Store Connect, and put its Apple ID in `eas.json` as `submit.production.ios.ascAppId` on a small PR.
-   4. Install the Expo GitHub App and link the repo to the Expo project.
-   5. Create an internal TestFlight group with automatic distribution, add yourself, and install TestFlight.
-   6. Merge the `ascAppId` PR: that push is the first real deploy.
-   7. On the first build, check the router `origin` and SQLite storage.
-   Plus: check the expo.dev run after the first deploy and after any native change; what forces a new build (native dependency bumps and `app.json` edits change the fingerprint, each costing one build from the plan quota, visible on the account usage page); which path a run took and where to look, how OTA reaches a device (launch twice), rollback (`eas update:republish`), the stuck-build symptom and fix, TestFlight's 90-day expiry with a manual rebuild, and that `workflow:run` and `eas fingerprint` exist for checking. Update the existing NOTES.md items that say `eas.json` doesn't exist, and state that generated cards need the Fly server.
+What was built:
 
-The merge of this PR is safe: until the repo is linked nothing runs, and a failing EAS run stays on expo.dev without touching `ci-required`. A failing first deploy is possible and costs a retry.
+1. `expo-updates` ~58.0.20, added with `npx expo install`.
+2. `eas.json`: `cli.appVersionSource: remote`; `build.production` with `channel: production` and `autoIncrement: true` on the default `auto` image; `build.simulator` with `ios.simulator: true` and `channel: simulator` (written by `eas update:configure`); an empty `submit.production`, where the owner adds `ascAppId`. No Node pin.
+3. `app.json`: `runtimeVersion: { policy: "fingerprint" }`, `updates.url`, `ios.config.usesNonExemptEncryption: false`.
+4. `.eas/workflows/deploy-ios.yml` on push to `main`: `fingerprint` -> `get-build` (ios, production, `wait_for_in_progress: true`) -> `build` then `testflight` if no build exists, otherwise `update` on branch `production`. Review added `concurrency` with group `deploy-ios-${{ github.ref }}`, so queued merges can't publish out of order.
+5. A Release simulator build on EAS (build `8cd5fd36-6180-4f1b-ab6b-651452f86417`, Xcode 27.1) ran before merge, and launched on an iOS 26.3 simulator to the starter deck. It was the app's first native compile. The later `concurrency` change touches no native input.
+6. Measured: `ascAppId` leaves the iOS fingerprint unchanged, as does `version`; `package.json` scripts, `.gitignore` and the `origin` change it.
+7. NOTES.md "Deploying to TestFlight" holds the one-time setup, day-to-day use and failure recovery. README and the NOTES build status were updated.
+
+**The trigger is unverified.** Code review found that Expo links only GitHub organization repos to Expo organizations, and `honerlaw/fencepost` is a personal repo (`onerlawllc` being an Expo organization is inferred). Runbook step 4 therefore starts by confirming the account types, then moves the repo to the `onerlaw` org (preferred) or the EAS project to the personal account. A panel held this as a fix, not a replan, because the approach and criteria stand under those two moves. A GitHub Actions trigger with a token would change the approach and need a replan. No success criterion covers the trigger: the first post-setup merge is the end-to-end test.
 
 ### Scope
 
@@ -69,7 +63,7 @@ The knowledge constraint `2026-10-29-constraint-sdk-58-ios-dev-build-needs-xcode
 Criteria: (1) no EAS/CI token and no new GitHub secret; (2) bounded build spend; (3) fast delivery to device; (4) a deployment-config PR needs no extra machinery; (5) only merged code deploys (merged means passed `ci-required` on the PR through the `main` ruleset, not that `main`'s own CI run has finished).
 
 **A (recommended). EAS Workflow, fingerprint-gated.** `.eas/workflows/deploy-ios.yml`, on push to `main`, adapted from Expo's "Deploy to production" example, iOS only, with no `internal_groups` so an automatic-distribution group receives builds:
-`fingerprint` -> `get-build` (platform ios, profile production, fingerprint hash, `wait_for_in_progress: true`) -> if no build: `build` (ios, production) -> `testflight` (build_id) | if build exists: `update` (branch production, platform ios). Triggered by the Expo GitHub App linked to the repo, so no token exists anywhere. Requires `expo-updates` with `runtimeVersion: { policy: fingerprint }` and `updates.url`, and `channel: production` in `eas.json`.
+`fingerprint` -> `get-build` (platform ios, profile production, fingerprint hash, `wait_for_in_progress: true`) -> if no build: `build` (ios, production) -> `testflight` (build_id) | if build exists: `update` (branch production, platform ios). Triggered by the Expo GitHub App linked to the repo, so no token exists anywhere (the link needs the ownership move described in Approach). Requires `expo-updates` with `runtimeVersion: { policy: fingerprint }` and `updates.url`, and `channel: production` in `eas.json`.
 
 **B. GitHub Actions.** A new workflow gated on CI success via `workflow_run`, with an `EXPO_TOKEN` secret, running `eas build --auto-submit --non-interactive`. Gates deploy on main's CI run, but adds a GitHub secret (outside Doppler unless a sync is set up), touches `.github/` (needs the label), and adds a privileged workflow to a public repo.
 
@@ -101,5 +95,5 @@ This unit delivers deploy-ready config and a verified native compile; the first 
 
 ## Open Questions
 
-- None block the work. The owner supplies `ascAppId` after creating the app record, in one small PR that doubles as the first deploy trigger.
+- The owner chooses how to make the repo linkable (runbook step 4), and supplies `ascAppId` in one small PR that doubles as the first deploy trigger.
 </content>

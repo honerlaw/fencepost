@@ -63,9 +63,14 @@ Nothing runs until step 4, so these can wait until you're ready.
    ```json
    "submit": { "production": { "ios": { "ascAppId": "<Apple ID>" } } }
    ```
-4. Install the Expo GitHub App and link `honerlaw/fencepost` to the `@onerlawllc/fencepost` project: **Project settings > GitHub** on expo.dev.
+4. Make the repo linkable, then link it. Expo's docs say only GitHub organization repos can link to Expo organizations, and `honerlaw/fencepost` belongs to a personal GitHub account. First confirm the account types: look at `onerlawllc` on expo.dev, and open **Project settings > GitHub** to see whether the repo is offered. If it isn't, pick one of these:
+   - **Move the repo to the `onerlaw` GitHub org (preferred).** No code changes. Afterwards, update local remotes with `git remote set-url origin`, check that the `main` ruleset and the `guardrails-approved` label came across, check that Actions still run, and fix any `honerlaw/fencepost` URLs in the docs.
+   - **Move the EAS project to the personal `derek.honerlaw` account**, and change `owner` in `app.json`. The docs don't say that a personal repo can link to a personal Expo account, so check that first. Signing credentials then go under that account.
+   - **Keep both where they are**, and add a GitHub Actions job that calls `eas workflow:run` with an `EXPO_TOKEN`. This is a last resort: it adds a token and changes a guarded path, so it needs its own plan.
+
+   Then connect your GitHub user under **User settings > Connections** on expo.dev, install the Expo GitHub App, and link the repo.
 5. In App Store Connect, go to **TestFlight** and create an internal group with automatic distribution. Add yourself, and install the TestFlight app on your phone.
-6. Merge the `ascAppId` PR. That push is the first deploy, and it takes a build plus Apple's processing, usually 30 to 45 minutes in total.
+6. Merge the `ascAppId` PR. That push is the first deploy, and the first real test of the trigger, which nothing has exercised yet. It takes a build plus Apple's processing, usually 30 to 45 minutes in total. Merge nothing else between steps 4 and 6, and that includes Dependabot PRs: without `ascAppId` the upload fails, and the build it leaves behind makes the next merge publish an update instead of uploading a binary.
 7. On that first build, check that progress survives a restart (SQLite). Once the Fly server exists, check that a generated batch arrives, which proves the router `origin`.
 
 Signing credentials and the App Store Connect API key live on EAS, not in Doppler, because EAS has to hold them to sign and upload. They're the one exception to "all secrets live in Doppler". None of them reach this repo or GitHub, and the workflow uses no token.
@@ -74,14 +79,14 @@ Signing credentials and the App Store Connect API key live on EAS, not in Dopple
 
 - **Which path a run took:** see **Workflows** on the [project page](https://expo.dev/accounts/onerlawllc/projects/fencepost/workflows). Either `Build iOS` and `Upload to TestFlight` ran, or `Publish iOS update` did. The others show as skipped.
 - **Getting an update on the phone:** updates download when the app launches and apply on the next launch, so close and reopen it twice.
-- **What forces a new build:** a native dependency bump, or a change to `app.json` or to a config plugin. Each one uses a build from the plan's monthly quota (see **Usage** on expo.dev). Adding `ascAppId` doesn't change the hash, because `eas.json` isn't part of it.
+- **What forces a new build:** a native dependency bump, most `app.json` edits (including the `origin`), and any edit to `package.json` scripts or `.gitignore`. Each one uses a build from the plan's monthly quota (see **Usage** on expo.dev). Adding `ascAppId` doesn't change the hash, because `eas.json` isn't part of it. Bumping `version` doesn't change it either, so a merge that only bumps the version ships as an update; to get that version into TestFlight, run the manual build under "When something goes wrong".
 - **Roll back an update:** `npx eas-cli@latest update:republish --branch production`, then pick the last good update.
 - **Compile without signing:** `npx eas-cli@latest build --platform ios --profile simulator` needs no Apple login.
 
 ### When something goes wrong
 
 - **A failed deploy never blocks merging.** The workflow reports on expo.dev, and `ci-required` doesn't depend on it, so check the run after the first deploy and after any native change. It also doesn't wait for `main`'s own CI run: the gate is `ci-required` on the PR.
-- **The build worked but the upload failed.** This one is easy to miss: later merges find the build and publish updates, while TestFlight never gets the binary. Re-run the failed job on expo.dev, or run `npx eas-cli@latest submit --platform ios --latest`.
+- **The build worked but the upload failed.** This one is easy to miss: later merges find the build and publish updates, while TestFlight never gets the binary. Copy the build ID from the failed run and run `npx eas-cli@latest submit --platform ios --id <build id>` from a checkout that has `ascAppId`. Don't use `--latest`, which can pick a simulator build.
 - **The build expired.** TestFlight builds last 90 days, and JavaScript-only merges don't renew them. Run `npx eas-cli@latest build --platform ios --profile production --auto-submit`.
 
 ## Not done by this run: user-run steps
@@ -93,7 +98,7 @@ These were left undone on purpose. Most need your accounts, money or hardware, o
 3. **Fly.io.** Nothing was deployed. When you're ready: `fly launch --no-deploy` (accept the Dockerfile, no database) → connect the Doppler project to the Fly app under **Syncs → Fly.io** in the Doppler dashboard, which keeps the secrets in step (or copy them once with `doppler secrets download --project fencepost --config prd --no-file --format docker | grep -v '^DOPPLER_' | fly secrets import`; the `docker` format matters because `env` wraps values in quotes) → `fly deploy --ha=false` → check `https://<app>.fly.dev/api/health` → `fly logs` to watch the `{"event":"batch",...}` lines. If the app name isn't `fencepost`, update the `origin` above.
    - **Run exactly one machine** until the rate limits move to Redis (see the "Rate-limit state" row above). `fly.toml` can't enforce this: `min_machines_running = 1` is a floor, and without `--ha=false` the first `fly deploy` starts two machines. Later `fly deploy` runs keep the current count, so the flag matters only on the first deploy or after scaling to zero. If two machines already exist, run `fly scale count 1`.
 4. **A production native build against Fly.** Play a generated batch in a release build pointed at the deployed server.
-5. **iOS development build.** This was not verified: the dev-build compile, config-plugin effects (expo-sqlite, expo-splash-screen, the router origin) and the custom binary are all untested.
+5. **iOS development build.** A Release simulator build compiled on EAS on 2026-10-31 (build `8cd5fd36`, Xcode 27.1) and launched on the iOS 26.3 simulator to the starter deck, with the fonts and styling intact. That proves the compile, the plugins that run at build time and the `expo-updates` config. Still untested: a device-signed build, and a debug development build.
    - `npx expo run:ios` needs **Xcode 26.4+** (SDK 58's requirement). With Xcode 26.2 it fails inside Expo's own native code, not app code:
      `node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptObject.swift:946:36: error: sending 'slot' risks causing data races`.
      Xcode 26.4+ is the documented fix, but it hasn't been tested here.

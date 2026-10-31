@@ -7,6 +7,12 @@ on:
   push:
     branches: ['main']
 
+# One deploy at a time, or two queued merges could publish their updates in the wrong order and
+# leave older code live. No cancel_in_progress: the running deploy finishes, then only the newest
+# waiting run goes, and it contains every merge before it.
+concurrency:
+  group: deploy-ios-${{ github.ref }}
+
 jobs:
   fingerprint:
     name: Fingerprint
@@ -20,7 +26,7 @@ jobs:
       platform: ios
       profile: production
       fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
-      # Two quick merges must not start two builds, or publish an update before the build exists.
+      # A build started by hand counts too, so wait for it rather than starting a second one.
       wait_for_in_progress: true
   build_ios:
     name: Build iOS
