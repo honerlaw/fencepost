@@ -54,7 +54,7 @@ export interface Progress {
   lastDay: string;
   /** Rematch queue, oldest first, max 30. */
   missed: Card[];
-  /** Recent card titles, max 30, sent to the server to avoid repeats. */
+  /** Recent card titles, max 30: blocks repeats, and resumes the starter deck after a restart. */
   recent: string[];
   /** Empty means all topics. */
   domains: DomainId[];

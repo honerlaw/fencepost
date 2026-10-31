@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import type { StateStorage } from 'zustand/middleware';
 
+import { newProgress } from '@/game/engine';
 import { BATCH_DEADLINE_MS, MIN_FETCH_GAP_MS } from '@/game/fetch-policy';
 import type { Card } from '@/game/types';
 import { debounceStorage } from './debounced-storage';
@@ -80,9 +81,14 @@ const generatedCard = (n: number) => ({
 
 /** A fetchBatch the test drives by hand: each call is recorded with its event sink and a resolver. */
 function manualBatches() {
-  const calls: { emit: Parameters<FetchBatch>[1]; finish: () => void; signal: AbortSignal }[] = [];
-  const fetchBatch: FetchBatch = (_req, onEvent, signal) =>
-    new Promise((resolve) => calls.push({ emit: onEvent, finish: () => resolve({ ok: true }), signal }));
+  const calls: {
+    req: Parameters<FetchBatch>[0];
+    emit: Parameters<FetchBatch>[1];
+    finish: () => void;
+    signal: AbortSignal;
+  }[] = [];
+  const fetchBatch: FetchBatch = (req, onEvent, signal) =>
+    new Promise((resolve) => calls.push({ req, emit: onEvent, finish: () => resolve({ ok: true }), signal }));
   return { calls, fetchBatch };
 }
 
@@ -159,6 +165,28 @@ describe('game store persistence', () => {
     expect(rematch.id).toBe(saved.missed[0]!.id);
     second.store.getState().answer(rightAnswer(rematch));
     expect(second.store.getState().progress).toMatchObject({ streak: 2, answered: 7, deviceId: saved.deviceId });
+  });
+
+  it('resumes the starter deck from saved progress after a restart', async () => {
+    const backing = memoryStorage();
+    const clock = { now: T0 };
+
+    const first = makeStore(backing, clock);
+    await hydrated(first.store);
+    first.store.getState().begin();
+    const titles = [currentCard(first.store).title, ...first.store.getState().game!.starter.map((c) => c.title)];
+    first.store.getState().answer(rightAnswer(currentCard(first.store)));
+    first.store.getState().next();
+    first.store.getState().skip();
+    await first.storage.flush();
+    const saved = first.store.getState().progress!;
+
+    const second = makeStore(backing, clock);
+    await hydrated(second.store);
+    second.store.getState().begin();
+    expect(currentCard(second.store).title).toBe(titles[2]);
+    expect(second.store.getState().game?.starter).toHaveLength(3);
+    expect(second.store.getState().progress).toMatchObject({ xp: saved.xp, answered: 1, starterDone: false });
   });
 
   it('coalesces writes until the debounce fires or a flush', async () => {
@@ -326,6 +354,59 @@ describe('game store batches', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(store.getState().game?.fetch).toMatchObject({ inFlight: false, error: null });
+  });
+
+  it('tells the server about the card on screen and the starter cards still to come', async () => {
+    const { calls, fetchBatch } = manualBatches();
+    const store = await firstTimer(fetchBatch);
+    const titles = [currentCard(store).title, ...store.getState().game!.starter.map((c) => c.title)];
+    store.getState().answer(rightAnswer(currentCard(store)));
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.req.recent).toEqual(titles);
+  });
+
+  it('keeps queued titles in a full request', async () => {
+    const backing = memoryStorage();
+    const progress = {
+      ...newProgress('device-x'),
+      starterDone: true,
+      recent: Array.from({ length: 30 }, (_, i) => `Played ${i}`),
+    };
+    backing.data.set(STORAGE_KEY, JSON.stringify({ state: { progress }, version: 1 }));
+    const { calls, fetchBatch } = manualBatches();
+    const store = createGameStore({
+      storage: debounceStorage(backing, 1000),
+      now: () => T0,
+      rng: () => 0.5,
+      newId: () => 'device-x',
+      fetchBatch,
+      reportFlag: () => {},
+    });
+    await hydrated(store);
+    store.getState().begin();
+    store.getState().dealIn();
+    expect(calls).toHaveLength(1);
+    calls[0]!.emit({ event: 'card', card: generatedCard(1) });
+    calls[0]!.emit({ event: 'card', card: generatedCard(2) });
+    vi.useFakeTimers();
+    calls[0]!.emit({ event: 'done', sent: 2 });
+    vi.advanceTimersByTime(MIN_FETCH_GAP_MS);
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.req.recent).toHaveLength(20);
+    expect(calls[1]!.req.recent.slice(-2)).toEqual(['Gen 1', 'Gen 2']);
+  });
+
+  it('drops a repeat from the stream, and ends on Try again if nothing fresh arrived', async () => {
+    const { calls, fetchBatch } = manualBatches();
+    const store = await firstTimer(fetchBatch);
+    const repeat = store.getState().game!.starter[0]!.title;
+    skipToLoading(store);
+    expect(calls).toHaveLength(1);
+    calls[0]!.emit({ event: 'card', card: { ...generatedCard(1), title: repeat } });
+    calls[0]!.emit({ event: 'done', sent: 1 });
+    expect(store.getState().game?.current).toEqual({ kind: 'error', code: 'upstream_error' });
+    expect(store.getState().game?.fetch.inFlight).toBe(false);
+    expect(calls).toHaveLength(1);
   });
 
   it('reports a card flagged as wrong', async () => {

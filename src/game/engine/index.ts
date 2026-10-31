@@ -9,6 +9,7 @@ export { dealIn } from './deal-in';
 export { flagWrong } from './flag-wrong';
 export { newProgress } from './new-progress';
 export { nextFetch } from './next-fetch';
+export { recentForRequest } from './recent-for-request';
 export { setDomains } from './set-domains';
 export { skip } from './skip';
 export { startSession } from './start-session';

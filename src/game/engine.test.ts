@@ -13,6 +13,7 @@ import {
   MAX_MISSED,
   newProgress,
   nextFetch,
+  recentForRequest,
   skip,
   startSession,
   type GameState,
@@ -295,6 +296,17 @@ describe('batches', () => {
     expect(s.fetch.inFlight).toBe(false);
   });
 
+  it('Try again reaches a rematch that was the last card played, when the fetch fails again', () => {
+    const only = modelCard();
+    const failed = batchFailed(playing([], { missed: [only] }), 'upstream_error', deps());
+    expect(current(failed)).toMatchObject({ id: only.id, rematch: true });
+    const stuck = skip(failed, deps());
+    expect(stuck.current).toEqual({ kind: 'error', code: 'upstream_error' });
+    const retrying = beginFetch(stuck, 'manual', deps());
+    expect(retrying.current.kind).toBe('loading');
+    expect(current(batchFailed(retrying, 'upstream_error', deps()))).toMatchObject({ id: only.id, rematch: true });
+  });
+
   it('ignores malformed cards from the stream', () => {
     const s = applyBatchEvent(playing([]), { event: 'card', card: { id: 'x', type: 'flaw' } }, deps());
     expect(s.queue).toHaveLength(0);
@@ -347,5 +359,173 @@ describe('batches', () => {
     s = beginFetch(advance(right(s), deps()), 'fetch', deps());
     s = batchFailed(s, 'unavailable', deps());
     expect(current(s).rematch).toBe(true);
+  });
+});
+
+const titled = (title: string) => modelCard({ title });
+const fetching = (s: GameState) => beginFetch(s, 'fetch', deps());
+const queued = (s: GameState) => s.queue.map((c) => c.title);
+const deck = () => loadStarterDeck(seededRng(1));
+const startFresh = () => startSession(newProgress('d'), deck(), deps());
+/** A first-timer with the starter deck, one card in. */
+const firstRun = () => answer(startFresh(), 0, deps());
+const restart = (s: GameState) => startSession(s.progress, deck(), deps());
+
+function batch(start: GameState, ...cards: Card[]): GameState {
+  let s = start;
+  for (const card of cards) s = applyBatchEvent(s, { event: 'card', card }, deps());
+  return s;
+}
+
+describe('duplicate cards', () => {
+  it('drops a card matching a title in recent history', () => {
+    const s = batch(playing([titled('Kept')], { recent: ['Double booking'] }), titled('Double booking'));
+    expect(s.queue).toHaveLength(0);
+  });
+
+  it('drops a card matching the card on screen', () => {
+    const s = playing([titled('On screen')]);
+    expect(batch(s, titled('On screen')).queue).toHaveLength(0);
+  });
+
+  it('drops a card matching one in the queue', () => {
+    const s = playing([titled('On screen'), titled('Waiting')]);
+    expect(queued(batch(s, titled('Waiting')))).toEqual(['Waiting']);
+  });
+
+  it('drops a card matching an unplayed starter card', () => {
+    const s = firstRun();
+    const later = s.starter[0]!;
+    expect(batch(s, titled(later.title)).queue).toHaveLength(0);
+  });
+
+  it('drops a card matching the rematch list, and that card still comes back', () => {
+    const missed = titled('Missed once');
+    let s = playing([titled('On screen')], { missed: [missed] });
+    s = batch(s, titled('Missed once'));
+    expect(s.queue).toHaveLength(0);
+    s = advance(right(s), deps());
+    expect(current(s)).toMatchObject({ id: missed.id, rematch: true });
+  });
+
+  it('keeps only the first of two matching cards in a batch', () => {
+    const s = batch(playing([titled('On screen')]), titled('Same title'), titled('Same title'));
+    expect(queued(s)).toEqual(['Same title']);
+  });
+
+  it('matches across case, punctuation and spacing', () => {
+    const s = batch(playing([titled('On screen')], { recent: ['double booking'] }), titled('  Double-Booking! '));
+    expect(s.queue).toHaveLength(0);
+  });
+
+  it('never treats a title with no letters or digits as a repeat', () => {
+    const s = batch(playing([titled('On screen')], { recent: ['???'] }), titled('!!!'), titled('...'));
+    expect(queued(s)).toEqual(['!!!', '...']);
+  });
+
+  it('counts only fresh cards, and a batch with some still succeeds', () => {
+    let s = fetching(playing([titled('On screen')], { recent: ['Repeat'] }));
+    s = batch(s, titled('Repeat'), titled('Fresh'));
+    expect(s.fetch.received).toBe(1);
+    s = applyBatchEvent(s, { event: 'done', sent: 2 }, deps());
+    expect(s.fetch.error).toBeNull();
+    expect(queued(s)).toEqual(['Fresh']);
+  });
+
+  it('shows the error card when a batch of repeats ends while the player waits', () => {
+    let s = fetching(playing([], { recent: ['Repeat'] }));
+    s = batch(s, titled('Repeat'));
+    s = applyBatchEvent(s, { event: 'done', sent: 1 }, deps());
+    expect(s.current).toEqual({ kind: 'error', code: 'upstream_error' });
+    expect(s.fetch.inFlight).toBe(false);
+    expect(nextFetch(s)).toBe('wait');
+  });
+
+  it('leaves the card on screen alone when a batch of repeats ends', () => {
+    let s = fetching(playing([titled('On screen')]));
+    const before = current(s);
+    s = batch(s, titled('On screen'));
+    s = applyBatchEvent(s, { event: 'done', sent: 1 }, deps());
+    expect(current(s)).toBe(before);
+    expect(s.fetch.error?.code).toBe('upstream_error');
+  });
+
+  describe('the titles sent to the server', () => {
+    it('adds the card on screen, then the queue, after history', () => {
+      const s = playing([titled('On screen'), titled('Waiting')], { recent: ['Played'] });
+      expect(recentForRequest(s)).toEqual(['Played', 'On screen', 'Waiting']);
+    });
+
+    it('adds unplayed starter cards', () => {
+      const s = firstRun();
+      expect(recentForRequest(s)).toEqual(deck().map((c) => c.title));
+    });
+
+    it('lists a title once, at its latest position', () => {
+      const s = playing([titled('double booking')], { recent: ['Double-booking', 'Other'] });
+      expect(recentForRequest(s)).toEqual(['Other', 'double booking']);
+    });
+
+    it('keeps every title with no letters or digits', () => {
+      const s = playing([titled('???')], { recent: ['!!!'] });
+      expect(recentForRequest(s)).toEqual(['!!!', '???']);
+    });
+
+    it('caps at 20 by cutting history, never a pending title', () => {
+      const history = Array.from({ length: 30 }, (_, i) => `Played ${i}`);
+      const s = playing([titled('On screen'), titled('Waiting 1'), titled('Waiting 2')], { recent: history });
+      const sent = recentForRequest(s);
+      expect(sent).toHaveLength(20);
+      expect(sent.slice(-3)).toEqual(['On screen', 'Waiting 1', 'Waiting 2']);
+      expect(sent[0]).toBe('Played 13');
+    });
+  });
+
+  describe('restarting partway through the starter deck', () => {
+    it('skips cards already answered, and no XP is awarded twice', () => {
+      let s = startFresh();
+      for (let i = 0; i < 2; i++) s = advance(answer(s, (current(s) as ModelCard).answer, deps()), deps());
+      const { xp, answered } = s.progress;
+      s = restart(s);
+      expect(current(s).id).toBe(deck()[2]!.id);
+      expect(s.starter).toHaveLength(3);
+      expect(s.progress).toMatchObject({ xp, answered, starterDone: false });
+    });
+
+    it('skips cards already skipped', () => {
+      const s = restart(skip(startFresh(), deps()));
+      expect(current(s).id).toBe(deck()[1]!.id);
+    });
+
+    it('skips cards flagged as wrong', () => {
+      const first = startFresh();
+      const wrongPick = ((first.current as { card: ModelCard }).card.answer + 1) % 4;
+      const s = restart(flagWrong(answer(first, wrongPick, deps())));
+      expect(current(s).id).toBe(deck()[1]!.id);
+      expect(s.progress.missed).toHaveLength(0);
+    });
+
+    it('sets starterDone when the remaining cards are finished', () => {
+      let s = restart(skip(startFresh(), deps()));
+      while (s.current.kind === 'card') s = skip(s, deps());
+      expect(s.progress.starterDone).toBe(true);
+    });
+
+    it('still brings a missed starter card back as a rematch', () => {
+      let s = startFresh();
+      const missed = current(s);
+      s = answer(s, ((s.current as { card: ModelCard }).card.answer + 1) % 4, deps());
+      s = restart(s);
+      expect(s.progress.missed.map((c) => c.id)).toEqual([missed.id]);
+      while (s.current.kind === 'card' && current(s).starter === true) s = skip(s, deps());
+      expect(current(s)).toMatchObject({ id: missed.id, rematch: true });
+    });
+
+    it('shows the welcome card when every starter title is already in recent', () => {
+      const recent = deck().map((c) => c.title);
+      const s = startSession({ ...newProgress('d'), recent }, deck(), deps());
+      expect(s.current.kind).toBe('welcome');
+      expect(s.progress.starterDone).toBe(true);
+    });
   });
 });

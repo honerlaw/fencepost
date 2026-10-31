@@ -136,6 +136,20 @@ test('progress survives a reload and returning players get a welcome card', asyn
   await expect(page.getByTestId('stat-answered')).toHaveText('6');
 });
 
+test('reloading partway through the starter deck resumes at the next card', async ({ page }) => {
+  await open(page);
+  for (const [i, c] of STARTER.slice(0, 2).entries()) {
+    await answerStarter(page, c, true);
+    await nextStarter(page, i);
+  }
+  const xp = await page.getByTestId('xp').textContent();
+  await page.reload();
+  await expect(card(page).getByRole('heading', { name: STARTER[2]!.title })).toBeVisible();
+  await expect(page.getByTestId('xp')).toHaveText(xp!);
+  await openTopics(page);
+  await expect(page.getByTestId('stat-answered')).toHaveText('2');
+});
+
 test('swiping up advances only after the card is answered', async ({ page }) => {
   await open(page);
   await swipeUp(page);

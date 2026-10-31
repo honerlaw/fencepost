@@ -13,6 +13,7 @@ import {
   flagWrong as flagCard,
   newProgress,
   nextFetch,
+  recentForRequest,
   setDomains as setSessionDomains,
   skip as skipCard,
   startSession,
@@ -71,9 +72,6 @@ export interface GameStore {
   cancelFetch: () => void;
 }
 
-/** How many recent titles go to the server. */
-export const RECENT_SENT = 20;
-
 const beforeHydration = () => {
   // Replaced as soon as the store exists; see createGameStore.
 };
@@ -114,7 +112,7 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
           const req: BatchRequest = {
             deviceId: progress.deviceId,
             domains: progress.domains,
-            recent: progress.recent.slice(-RECENT_SENT),
+            recent: recentForRequest(game),
           };
           const fail = (code: FetchErrorCode) => {
             if (stale() || ended) return;
