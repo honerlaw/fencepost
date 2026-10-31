@@ -22,7 +22,19 @@ function Toast({ id, text, onDone }: { id: number; text: string; onDone: (id: nu
 
 export function Toasts({ toasts, onDone }: { toasts: { id: number; text: string }[]; onDone: (id: number) => void }) {
   return (
-    <YStack testID="toasts" role="status" aria-live="polite" position="absolute" t={64} l={0} r={0} items="center" gap="$2" pointerEvents="none" z={10}>
+    <YStack
+      testID="toasts"
+      role="status"
+      aria-live="polite"
+      position="absolute"
+      t={64}
+      l={0}
+      r={0}
+      items="center"
+      gap="$2"
+      pointerEvents="none"
+      z={10}
+    >
       {toasts.map((t) => (
         <Toast key={t.id} id={t.id} text={t.text} onDone={onDone} />
       ))}

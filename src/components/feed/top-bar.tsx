@@ -7,7 +7,14 @@ import type { Progress } from '@/game/types';
 
 function Pill({ label, tone }: { label: string; tone: 'gold' | 'plain' }) {
   return (
-    <YStack px="$2" py={3} rounded={999} bg={tone === 'gold' ? '$goldWash' : '$wash'} borderWidth={1} borderColor={tone === 'gold' ? '$gold' : '$rule'}>
+    <YStack
+      px="$2"
+      py={3}
+      rounded={999}
+      bg={tone === 'gold' ? '$goldWash' : '$wash'}
+      borderWidth={1}
+      borderColor={tone === 'gold' ? '$gold' : '$rule'}
+    >
       <Text fontFamily="$body" fontWeight="700" fontSize={12} color={tone === 'gold' ? '$goldInk' : '$ink'}>
         {label}
       </Text>
@@ -32,13 +39,28 @@ export function TopBar({ progress, combo, onMenu }: { progress: Progress; combo:
           <YStack height={6} width={`${Math.round(rank.progress * 100)}%`} bg="$blue" />
         </YStack>
         <Text testID="xp" fontFamily="$mono" fontSize={11} color="$muted">
-          {rank.next == null ? `${xpFormat.format(progress.xp)} XP` : `${xpFormat.format(progress.xp)} / ${xpFormat.format(rank.next)} XP`}
+          {rank.next == null
+            ? `${xpFormat.format(progress.xp)} XP`
+            : `${xpFormat.format(progress.xp)} / ${xpFormat.format(rank.next)} XP`}
         </Text>
       </YStack>
       <XStack gap="$2" items="center">
         <Pill label={`${streak}-day streak`} tone="plain" />
-        {combo >= 2 ? <Pill label={mult > 1 ? `${combo} in a row · ${mult}x` : `${combo} in a row`} tone="gold" /> : null}
-        <Tap label="Topics and stats" onPress={onMenu} width={36} height={36} rounded={18} items="center" justify="center" bg="$card" borderWidth={1} borderColor="$rule">
+        {combo >= 2 ? (
+          <Pill label={mult > 1 ? `${combo} in a row · ${mult}x` : `${combo} in a row`} tone="gold" />
+        ) : null}
+        <Tap
+          label="Topics and stats"
+          onPress={onMenu}
+          width={36}
+          height={36}
+          rounded={18}
+          items="center"
+          justify="center"
+          bg="$card"
+          borderWidth={1}
+          borderColor="$rule"
+        >
           <YStack gap={3} aria-hidden>
             {[0, 1, 2].map((i) => (
               <YStack key={i} width={14} height={2} rounded={1} bg="$ink" />

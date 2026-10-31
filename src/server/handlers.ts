@@ -185,7 +185,12 @@ export function createHandlers(deps: HandlerDeps) {
       [deps.limits.flagDevice, parsed.value.deviceId],
     ]);
     if (!limit.ok) return limited(limit);
-    deps.log({ event: 'flag', device: await hashDevice(parsed.value.deviceId), reason: parsed.value.reason, card: parsed.value.card });
+    deps.log({
+      event: 'flag',
+      device: await hashDevice(parsed.value.deviceId),
+      reason: parsed.value.reason,
+      card: parsed.value.card,
+    });
     return json({ ok: true });
   }
 

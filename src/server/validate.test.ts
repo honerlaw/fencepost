@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import { parseCardsRequest, parseFlagRequest, readBody } from './validate';
 
-const post = (body: string, headers: Record<string, string> = {}) => new Request('http://x/api/cards', { method: 'POST', body, headers });
+const post = (body: string, headers: Record<string, string> = {}) =>
+  new Request('http://x/api/cards', { method: 'POST', body, headers });
 
 describe('request validation', () => {
   it('caps the body at 4 KB', async () => {
     const big = JSON.stringify({ deviceId: 'device-123', recent: ['x'.repeat(5000)] });
     expect(await readBody(post(big), 4096)).toEqual({ ok: false, error: 'body too large' });
-    expect(await readBody(post('{}', { 'content-length': '9999' }), 4096)).toEqual({ ok: false, error: 'body too large' });
+    expect(await readBody(post('{}', { 'content-length': '9999' }), 4096)).toEqual({
+      ok: false,
+      error: 'body too large',
+    });
     expect(await readBody(post('{nope'), 4096)).toEqual({ ok: false, error: 'invalid JSON' });
   });
 

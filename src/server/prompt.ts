@@ -31,11 +31,21 @@ Field rules: title is 2 to 5 words naming the situation, like "Overlapping booki
 
 /** At most 20 titles, newlines stripped, each trimmed to 60 characters, blanks dropped. */
 export function cleanRecent(recent: readonly string[]): string[] {
-  return recent
-    .slice(-MAX_RECENT)
-    // Titles sit inside "…" in the prompt, so a double quote can't close the quoting early.
-    .map((t) => t.replace(/[\r\n]+/g, ' ').replace(/"/g, "'").replace(/\s+/g, ' ').trim().slice(0, RECENT_CHARS).trim())
-    .filter((t) => t.length > 0);
+  return (
+    recent
+      .slice(-MAX_RECENT)
+      // Titles sit inside "…" in the prompt, so a double quote can't close the quoting early.
+      .map((t) =>
+        t
+          .replace(/[\r\n]+/g, ' ')
+          .replace(/"/g, "'")
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, RECENT_CHARS)
+          .trim(),
+      )
+      .filter((t) => t.length > 0)
+  );
 }
 
 export function formatPlan(plan: readonly PlanSlot[]): string {

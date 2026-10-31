@@ -42,13 +42,26 @@ const NO_RELATIVE_API_FETCH = {
   message: 'expo/fetch ignores relative URLs on native. Wrap the path in apiUrl().',
 };
 const NO_RELATIVE_API_FETCH_TEMPLATE = {
-  selector: "CallExpression[callee.name='fetch'] > TemplateLiteral.arguments:first-child > TemplateElement:first-child[value.raw=/^\\//]",
+  selector:
+    "CallExpression[callee.name='fetch'] > TemplateLiteral.arguments:first-child > TemplateElement:first-child[value.raw=/^\\//]",
   message: NO_RELATIVE_API_FETCH.message,
 };
 const SHARED_SYNTAX_BANS = [NO_PROCESS_ENV, NO_CAST_JSON_PARSE, NO_RELATIVE_API_FETCH, NO_RELATIVE_API_FETCH_TEMPLATE];
 
 const FRAMEWORK_IMPORTS = {
-  group: ['react', 'react-*', 'react/*', 'expo', 'expo-*', 'expo/*', '@expo/*', 'tamagui', '@tamagui/*', 'zustand', 'zustand/*'],
+  group: [
+    'react',
+    'react-*',
+    'react/*',
+    'expo',
+    'expo-*',
+    'expo/*',
+    '@expo/*',
+    'tamagui',
+    '@tamagui/*',
+    'zustand',
+    'zustand/*',
+  ],
   message: 'src/game and src/cards are the pure core: no React, Expo, Tamagui or zustand.',
 };
 const SERVER_IMPORTS = {
@@ -228,13 +241,26 @@ export default defineConfig([
       'no-restricted-syntax': [
         'error',
         ...SHARED_SYNTAX_BANS,
-        { selector: "CallExpression[callee.object.name='Date'][callee.property.name='now']", message: 'The pure core takes its clock from deps.now.' },
-        { selector: "CallExpression[callee.object.name='Math'][callee.property.name='random']", message: 'The pure core takes an injected RNG.' },
+        {
+          selector: "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+          message: 'The pure core takes its clock from deps.now.',
+        },
+        {
+          selector: "CallExpression[callee.object.name='Math'][callee.property.name='random']",
+          message: 'The pure core takes an injected RNG.',
+        },
       ],
     },
   },
   {
-    files: ['src/components/**/*.{ts,tsx}', 'src/lib/**/*.ts', 'src/store/**/*.ts', 'src/theme/**/*.ts', 'src/app/_layout.tsx', 'src/app/index.tsx'],
+    files: [
+      'src/components/**/*.{ts,tsx}',
+      'src/lib/**/*.ts',
+      'src/store/**/*.ts',
+      'src/theme/**/*.ts',
+      'src/app/_layout.tsx',
+      'src/app/index.tsx',
+    ],
     rules: { 'no-restricted-imports': ['error', { patterns: [SERVER_IMPORTS] }] },
   },
   {

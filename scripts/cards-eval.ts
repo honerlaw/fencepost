@@ -36,14 +36,18 @@ function printCard(card: Card, n: number) {
       console.log(`     ${mark} ${String(i + 1).padStart(2)} | ${line}`);
     });
   }
-  if ('options' in card) card.options.forEach((o, i) => console.log(`     ${i === card.answer ? '✓' : ' '} ${OPTION_LETTERS[i]}. ${o}`));
+  if ('options' in card)
+    card.options.forEach((o, i) => console.log(`     ${i === card.answer ? '✓' : ' '} ${OPTION_LETTERS[i]}. ${o}`));
   if (card.type === 'order') card.steps.forEach((s, i) => console.log(`       ${i + 1}) ${s}`));
   console.log(`     Why: ${card.why}`);
 }
 
 async function main() {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) fail('OPENROUTER_API_KEY is not set. Add it to the Doppler project fencepost (config prd) and run this through `npm run cards:eval`.');
+  if (!apiKey)
+    fail(
+      'OPENROUTER_API_KEY is not set. Add it to the Doppler project fencepost (config prd) and run this through `npm run cards:eval`.',
+    );
   const model = arg('model') ?? process.env.CARD_MODEL;
   if (!model) fail('pass --model <openrouter-model-id> (or set CARD_MODEL).');
   const batches = Number(arg('batches') ?? 3);
@@ -52,7 +56,10 @@ async function main() {
   if (domainArg && !isDomainId(domainArg)) fail(`unknown domain "${domainArg}".`);
   const requested: DomainId[] = domainArg && isDomainId(domainArg) ? [domainArg] : [];
 
-  const openrouter = createOpenRouter({ apiKey, ...(process.env.OPENROUTER_BASE_URL ? { baseURL: process.env.OPENROUTER_BASE_URL } : {}) });
+  const openrouter = createOpenRouter({
+    apiKey,
+    ...(process.env.OPENROUTER_BASE_URL ? { baseURL: process.env.OPENROUTER_BASE_URL } : {}),
+  });
   const source = createLiveCardSource({
     models: [model],
     languageModel: (id) => openrouter.chat(id),
@@ -68,30 +75,46 @@ async function main() {
     previous = domain;
     const plan = makePlan(5, Math.random);
     const flavor = pickFlavor(Math.random);
-    console.log(`\n=== Batch ${b}/${batches}: ${domainName(domain)} · ${flavor} · plan ${plan.map((s) => s.type + (s.boss ? '*' : '')).join(', ')}`);
+    console.log(
+      `\n=== Batch ${b}/${batches}: ${domainName(domain)} · ${flavor} · plan ${plan.map((s) => s.type + (s.boss ? '*' : '')).join(', ')}`,
+    );
     const started = Date.now();
     let first: number | null = null;
     let n = 0;
     try {
-      const stats = await source.getBatch({ domain, plan, prompt: buildPrompt({ domain, plan, flavor, recent: [] }), signal: AbortSignal.timeout(90_000) }, (card) => {
-        first ??= Date.now() - started;
-        printCard(card, ++n);
-      });
+      const stats = await source.getBatch(
+        {
+          domain,
+          plan,
+          prompt: buildPrompt({ domain, plan, flavor, recent: [] }),
+          signal: AbortSignal.timeout(90_000),
+        },
+        (card) => {
+          first ??= Date.now() - started;
+          printCard(card, ++n);
+        },
+      );
       const ms = Date.now() - started;
       totals.sent += stats.sent;
       totals.dropped += stats.dropped;
       totals.ms.push(ms);
       if (first != null) totals.firstCardMs.push(first);
-      console.log(`\n  -> ${stats.sent} sent, ${stats.dropped} dropped, first card ${first ?? '-'} ms, total ${ms} ms, tokens in/out ${stats.usage.input}/${stats.usage.output}`);
+      console.log(
+        `\n  -> ${stats.sent} sent, ${stats.dropped} dropped, first card ${first ?? '-'} ms, total ${ms} ms, tokens in/out ${stats.usage.input}/${stats.usage.output}`,
+      );
     } catch (err) {
       totals.failed++;
-      console.log(`\n  -> batch failed after ${Date.now() - started} ms: ${err instanceof Error ? err.message : String(err)}`);
+      console.log(
+        `\n  -> batch failed after ${Date.now() - started} ms: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
   const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
   const produced = totals.sent + totals.dropped;
-  console.log(`\n=== ${model}: ${totals.sent} cards kept, ${totals.dropped} dropped (${produced ? Math.round((100 * totals.dropped) / produced) : 0}% drop rate), ${totals.failed} failed batches`);
+  console.log(
+    `\n=== ${model}: ${totals.sent} cards kept, ${totals.dropped} dropped (${produced ? Math.round((100 * totals.dropped) / produced) : 0}% drop rate), ${totals.failed} failed batches`,
+  );
   console.log(`    average first card ${avg(totals.firstCardMs)} ms, average batch ${avg(totals.ms)} ms`);
   console.log('    Now read every card above: a puzzle with a wrong answer is the worst bug this app can have.');
 }

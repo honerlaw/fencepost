@@ -28,7 +28,14 @@ export function Options({ options, onPick, reveal }: OptionsProps) {
             borderColor={right ? '$green' : wrong ? '$red' : '$rule'}
             bg={right ? '$greenWash' : wrong ? '$redWash' : '$card'}
           >
-            <YStack width={26} height={26} rounded={13} items="center" justify="center" bg={right ? '$green' : wrong ? '$red' : '$wash'}>
+            <YStack
+              width={26}
+              height={26}
+              rounded={13}
+              items="center"
+              justify="center"
+              bg={right ? '$green' : wrong ? '$red' : '$wash'}
+            >
               <Text fontFamily="$body" fontWeight="700" fontSize={13} color={right || wrong ? '$card' : '$muted'}>
                 {right ? '✓' : wrong ? '✗' : letter}
               </Text>

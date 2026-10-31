@@ -1,5 +1,11 @@
 import { useEffect } from 'react';
-import Animated, { Easing, useAnimatedProps, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  useAnimatedProps,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { useTheme } from 'tamagui';
 
@@ -73,7 +79,11 @@ export function MarkerCircle({ box }: { box: Box }) {
       pointerEvents="none"
       width={width}
       height={height}
-      style={{ position: 'absolute', left: box.x + box.width / 2 - width / 2, top: box.y + box.height / 2 - height / 2 }}
+      style={{
+        position: 'absolute',
+        left: box.x + box.width / 2 - width / 2,
+        top: box.y + box.height / 2 - height / 2,
+      }}
     >
       <AnimatedPath
         d={loopPath(rx, ry)}

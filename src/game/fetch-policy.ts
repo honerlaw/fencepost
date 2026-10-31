@@ -23,11 +23,20 @@ export interface FetchState {
   received: number;
 }
 
-export const initialFetchState: FetchState = { inFlight: false, domain: null, error: null, autoRetryUsed: false, received: 0 };
+export const initialFetchState: FetchState = {
+  inFlight: false,
+  domain: null,
+  error: null,
+  autoRetryUsed: false,
+  received: 0,
+};
 
 export type FetchDecision = 'fetch' | 'auto-retry' | 'wait';
 
-export function decideFetch(fetch: FetchState, ctx: { queued: number; sessionStarted: boolean; answers: number }): FetchDecision {
+export function decideFetch(
+  fetch: FetchState,
+  ctx: { queued: number; sessionStarted: boolean; answers: number },
+): FetchDecision {
   if (fetch.inFlight || !ctx.sessionStarted || ctx.queued > LOW_WATER) return 'wait';
   if (!fetch.error) return 'fetch';
   // Rate limits never retry on their own; other errors get one retry, 3 answers later.

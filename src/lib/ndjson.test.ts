@@ -15,7 +15,10 @@ function streamOf(chunks: string[]): ReadableStream<Uint8Array> {
 describe('readNdjson', () => {
   it('emits each line as it completes, across chunk boundaries', async () => {
     const seen: unknown[] = [];
-    await readNdjson(streamOf(['{"event":"st', 'art","count":5}\n{"event":"pi', 'ng"}\n', '{"event":"done","sent":1}']), (v) => seen.push(v));
+    await readNdjson(
+      streamOf(['{"event":"st', 'art","count":5}\n{"event":"pi', 'ng"}\n', '{"event":"done","sent":1}']),
+      (v) => seen.push(v),
+    );
     expect(seen).toEqual([{ event: 'start', count: 5 }, { event: 'ping' }, { event: 'done', sent: 1 }]);
   });
 

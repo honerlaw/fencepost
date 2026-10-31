@@ -82,7 +82,19 @@ describe('game store persistence', () => {
     const second = makeStore(backing, clock);
     await hydrated(second.store);
     const restored = second.store.getState().progress!;
-    for (const field of ['xp', 'answered', 'correct', 'bestCombo', 'streak', 'lastDay', 'missed', 'recent', 'domains', 'starterDone', 'deviceId'] as const) {
+    for (const field of [
+      'xp',
+      'answered',
+      'correct',
+      'bestCombo',
+      'streak',
+      'lastDay',
+      'missed',
+      'recent',
+      'domains',
+      'starterDone',
+      'deviceId',
+    ] as const) {
       expect(restored[field], field).toEqual(saved[field]);
     }
 
@@ -129,7 +141,17 @@ describe('game store persistence', () => {
   });
 
   it('cancelling a batch keeps the cards that already arrived', async () => {
-    const card = (n: number) => ({ id: `g${n}`, type: 'model', domain: 'cache', title: `Gen ${n}`, prompt: 'p', why: 'w', boss: false, options: ['a', 'b', 'c'], answer: 0 });
+    const card = (n: number) => ({
+      id: `g${n}`,
+      type: 'model',
+      domain: 'cache',
+      title: `Gen ${n}`,
+      prompt: 'p',
+      why: 'w',
+      boss: false,
+      options: ['a', 'b', 'c'],
+      answer: 0,
+    });
     let aborted = false;
     const partial: FetchBatch = (_req, onEvent, signal) => {
       onEvent({ event: 'start', domain: 'cache', count: 5 });
@@ -139,7 +161,14 @@ describe('game store persistence', () => {
       return new Promise(() => {});
     };
     const storage = debounceStorage(memoryStorage(), 1000);
-    const store = createGameStore({ storage, now: () => T0, rng: () => 0.5, newId: () => 'device-x', fetchBatch: partial, reportFlag: () => {} });
+    const store = createGameStore({
+      storage,
+      now: () => T0,
+      rng: () => 0.5,
+      newId: () => 'device-x',
+      fetchBatch: partial,
+      reportFlag: () => {},
+    });
     await hydrated(store);
     store.getState().begin();
     store.getState().answer(rightAnswer(currentCard(store)));
@@ -152,7 +181,17 @@ describe('game store persistence', () => {
 });
 
 describe('game store batches', () => {
-  const card = (n: number) => ({ id: `g${n}`, type: 'model', domain: 'cache', title: `Gen ${n}`, prompt: 'p', why: 'w', boss: false, options: ['a', 'b', 'c'], answer: 0 });
+  const card = (n: number) => ({
+    id: `g${n}`,
+    type: 'model',
+    domain: 'cache',
+    title: `Gen ${n}`,
+    prompt: 'p',
+    why: 'w',
+    boss: false,
+    options: ['a', 'b', 'c'],
+    answer: 0,
+  });
 
   /** A fetchBatch the test drives by hand: each call is recorded with its event sink and a resolver. */
   function manualBatches() {
@@ -166,9 +205,20 @@ describe('game store batches', () => {
     vi.useRealTimers();
   });
 
-  async function firstTimer(fetchBatch: FetchBatch, clock = { now: T0 }, reportFlag: (deviceId: string, card: Card) => void = () => {}) {
+  async function firstTimer(
+    fetchBatch: FetchBatch,
+    clock = { now: T0 },
+    reportFlag: (deviceId: string, card: Card) => void = () => {},
+  ) {
     const storage = debounceStorage(memoryStorage(), 1000);
-    const store = createGameStore({ storage, now: () => clock.now, rng: () => 0.5, newId: () => 'device-x', fetchBatch, reportFlag });
+    const store = createGameStore({
+      storage,
+      now: () => clock.now,
+      rng: () => 0.5,
+      newId: () => 'device-x',
+      fetchBatch,
+      reportFlag,
+    });
     await hydrated(store);
     store.getState().begin();
     return store;

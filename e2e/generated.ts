@@ -8,7 +8,15 @@ export const GENERATED = [
     prompt: 'get() should treat an entry as missing once its TTL has passed. Tap the wrong line.',
     why: 'An entry that expires exactly now is already stale; the check must be expires_at <= now.',
     boss: false,
-    code: ['def get(cache, key, now):', '  e = cache.get(key)', '  if e is None:', '    return None', '  if e.expires_at < now:', '    return None', '  return e.value'],
+    code: [
+      'def get(cache, key, now):',
+      '  e = cache.get(key)',
+      '  if e is None:',
+      '    return None',
+      '  if e.expires_at < now:',
+      '    return None',
+      '  return e.value',
+    ],
     answer: 4,
   },
   {
@@ -36,6 +44,10 @@ export const GENERATED = [
 ];
 
 export function ndjson(cards: unknown[], domain = 'cache'): string {
-  const lines = [{ event: 'start', domain, count: cards.length }, ...cards.map((card) => ({ event: 'card', card })), { event: 'done', sent: cards.length }];
+  const lines = [
+    { event: 'start', domain, count: cards.length },
+    ...cards.map((card) => ({ event: 'card', card })),
+    { event: 'done', sent: cards.length },
+  ];
   return lines.map((l) => JSON.stringify(l)).join('\n') + '\n';
 }

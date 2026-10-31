@@ -1,7 +1,84 @@
 [
-  {"type":"flaw","title":"Late checkout window","prompt":"A hold expires 15 minutes after it was placed. Tap the line that lets expired holds keep stock.","code":["def is_live(hold, now):","  if hold.released:","    return False","  age = now - hold.placed_at","  return age <= 15 * 60 * 60"],"bad_line":"return age <= 15 * 60 * 60","input":null,"options":null,"correct":null,"steps":null,"why":"15 * 60 * 60 is 15 hours in seconds, not 15 minutes. It should be 15 * 60."},
-  {"type":"model","title":"Double tap on pay","prompt":"A customer taps Pay twice on a flaky network. What stops a second charge?","options":["An idempotency key per checkout attempt","Disabling the button after the first tap","Checking for a charge in the last minute","Refunding duplicates in a nightly job"],"correct":"An idempotency key per checkout attempt","code":null,"input":null,"bad_line":null,"steps":null,"why":"The server sees two requests either way. An idempotency key lets it return the first result instead of charging again."},
-  {"type":"break","title":"Seats left","prompt":"seats_left should never go below zero. Which booking sequence breaks it?","code":["def book(show, n):","  if show.left >= n:","    show.left -= n","    return True","  return False"],"options":["Two parallel bookings for the last seat","One booking for every remaining seat","A booking for zero seats","A booking larger than the hall"],"correct":"Two parallel bookings for the last seat","input":null,"bad_line":null,"steps":null,"why":"Both requests pass the check before either subtracts, so the count goes to -1. The check and update need to be atomic."},
-  {"type":"trace","title":"Retry with backoff","prompt":"How long does the job wait before its third attempt?","code":["def delay(attempt):","  base = 2","  return base ** attempt"],"input":"Attempts are numbered from 0. The first attempt runs at once.","options":["4 seconds","2 seconds","8 seconds","1 second"],"correct":"4 seconds","bad_line":null,"steps":null,"why":"The third attempt is attempt 2, so it waits 2 ** 2 = 4 seconds."},
-  {"type":"order","title":"Cancelling a ride","prompt":"Put the cancel steps in the order that never strands a driver.","steps":["Mark the ride as cancelling","Notify the assigned driver","Release the driver to the pool","Refund any pre-authorization","Mark the ride cancelled"],"code":null,"input":null,"options":null,"correct":null,"bad_line":null,"why":"The driver is told and released before money moves, and the ride is only final once everything else is done."}
+  {
+    "type": "flaw",
+    "title": "Late checkout window",
+    "prompt": "A hold expires 15 minutes after it was placed. Tap the line that lets expired holds keep stock.",
+    "code": [
+      "def is_live(hold, now):",
+      "  if hold.released:",
+      "    return False",
+      "  age = now - hold.placed_at",
+      "  return age <= 15 * 60 * 60"
+    ],
+    "bad_line": "return age <= 15 * 60 * 60",
+    "input": null,
+    "options": null,
+    "correct": null,
+    "steps": null,
+    "why": "15 * 60 * 60 is 15 hours in seconds, not 15 minutes. It should be 15 * 60."
+  },
+  {
+    "type": "model",
+    "title": "Double tap on pay",
+    "prompt": "A customer taps Pay twice on a flaky network. What stops a second charge?",
+    "options": [
+      "An idempotency key per checkout attempt",
+      "Disabling the button after the first tap",
+      "Checking for a charge in the last minute",
+      "Refunding duplicates in a nightly job"
+    ],
+    "correct": "An idempotency key per checkout attempt",
+    "code": null,
+    "input": null,
+    "bad_line": null,
+    "steps": null,
+    "why": "The server sees two requests either way. An idempotency key lets it return the first result instead of charging again."
+  },
+  {
+    "type": "break",
+    "title": "Seats left",
+    "prompt": "seats_left should never go below zero. Which booking sequence breaks it?",
+    "code": ["def book(show, n):", "  if show.left >= n:", "    show.left -= n", "    return True", "  return False"],
+    "options": [
+      "Two parallel bookings for the last seat",
+      "One booking for every remaining seat",
+      "A booking for zero seats",
+      "A booking larger than the hall"
+    ],
+    "correct": "Two parallel bookings for the last seat",
+    "input": null,
+    "bad_line": null,
+    "steps": null,
+    "why": "Both requests pass the check before either subtracts, so the count goes to -1. The check and update need to be atomic."
+  },
+  {
+    "type": "trace",
+    "title": "Retry with backoff",
+    "prompt": "How long does the job wait before its third attempt?",
+    "code": ["def delay(attempt):", "  base = 2", "  return base ** attempt"],
+    "input": "Attempts are numbered from 0. The first attempt runs at once.",
+    "options": ["4 seconds", "2 seconds", "8 seconds", "1 second"],
+    "correct": "4 seconds",
+    "bad_line": null,
+    "steps": null,
+    "why": "The third attempt is attempt 2, so it waits 2 ** 2 = 4 seconds."
+  },
+  {
+    "type": "order",
+    "title": "Cancelling a ride",
+    "prompt": "Put the cancel steps in the order that never strands a driver.",
+    "steps": [
+      "Mark the ride as cancelling",
+      "Notify the assigned driver",
+      "Release the driver to the pool",
+      "Refund any pre-authorization",
+      "Mark the ride cancelled"
+    ],
+    "code": null,
+    "input": null,
+    "options": null,
+    "correct": null,
+    "bad_line": null,
+    "why": "The driver is told and released before money moves, and the ride is only final once everything else is done."
+  }
 ]

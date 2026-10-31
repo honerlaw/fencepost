@@ -6,7 +6,12 @@ import { LIMITS, normalize } from './normalize';
 import { loadStarterDeck } from './starter';
 
 let n = 0;
-const opts = (seed = 1) => ({ domain: 'payments' as const, boss: false, rng: seededRng(seed), newId: () => `id-${++n}` });
+const opts = (seed = 1) => ({
+  domain: 'payments' as const,
+  boss: false,
+  rng: seededRng(seed),
+  newId: () => `id-${++n}`,
+});
 
 const raw = (over: Record<string, unknown>) => ({
   type: 'flaw',
@@ -50,7 +55,10 @@ describe('normalize', () => {
   });
 
   it('converts tabs to two spaces, strips trailing spaces, keeps indentation', () => {
-    const card = normalize(flaw({ code: ['def f(x):   ', '\tif x > 1:', '\t\treturn x', '\treturn 0'] }), opts()) as FlawCard;
+    const card = normalize(
+      flaw({ code: ['def f(x):   ', '\tif x > 1:', '\t\treturn x', '\treturn 0'] }),
+      opts(),
+    ) as FlawCard;
     expect(card.code).toEqual(['def f(x):', '  if x > 1:', '    return x', '  return 0']);
   });
 
@@ -100,9 +108,15 @@ describe('normalize', () => {
 
   it('converts break and trace cards, keeping a trace input', () => {
     const code = ['def f(n):', '  return n // 2'];
-    const br = normalize(raw({ type: 'break', code, options: ['a', 'b', 'c', 'd'], correct: 'c' }), opts()) as BreakCard;
+    const br = normalize(
+      raw({ type: 'break', code, options: ['a', 'b', 'c', 'd'], correct: 'c' }),
+      opts(),
+    ) as BreakCard;
     expect(br.options[br.answer]).toBe('c');
-    const tr = normalize(raw({ type: 'trace', code, input: 'n = 5', options: ['1', '2', '3'], correct: '2' }), opts()) as TraceCard;
+    const tr = normalize(
+      raw({ type: 'trace', code, input: 'n = 5', options: ['1', '2', '3'], correct: '2' }),
+      opts(),
+    ) as TraceCard;
     expect(tr.input).toBe('n = 5');
     expect(tr.options[tr.answer]).toBe('2');
     expect(normalize(raw({ type: 'break', code: null, options: ['a', 'b', 'c'], correct: 'a' }), opts())).toBeNull();

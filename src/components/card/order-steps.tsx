@@ -15,11 +15,19 @@ interface OrderStepsProps {
 
 function StepRow({ n, text, tone }: { n?: number; text: string; tone: 'placed' | 'pool' | 'right' | 'wrong' }) {
   const border = tone === 'right' ? '$green' : tone === 'wrong' ? '$red' : tone === 'placed' ? '$blue' : '$rule';
-  const bg = tone === 'right' ? '$greenWash' : tone === 'wrong' ? '$redWash' : tone === 'placed' ? '$blueWash' : '$card';
+  const bg =
+    tone === 'right' ? '$greenWash' : tone === 'wrong' ? '$redWash' : tone === 'placed' ? '$blueWash' : '$card';
   return (
     <XStack gap="$3" items="center" p="$3" minH={48} rounded="$3" borderWidth={1} borderColor={border} bg={bg}>
       {n != null ? (
-        <YStack width={26} height={26} rounded={13} items="center" justify="center" bg={tone === 'right' ? '$green' : tone === 'wrong' ? '$red' : '$blue'}>
+        <YStack
+          width={26}
+          height={26}
+          rounded={13}
+          items="center"
+          justify="center"
+          bg={tone === 'right' ? '$green' : tone === 'wrong' ? '$red' : '$blue'}
+        >
           <Text fontFamily="$mono" fontWeight="700" fontSize={13} color="$card">
             {n}
           </Text>
@@ -34,7 +42,12 @@ function StepRow({ n, text, tone }: { n?: number; text: string; tone: 'placed' |
 
 /** Mount with `key={card.id}`: the pool is shuffled once per card so it never starts in the right order. */
 export function OrderSteps({ steps, onDone, picked }: OrderStepsProps) {
-  const [pool] = useState(() => shuffleChanged(steps.map((_, i) => i), Math.random));
+  const [pool] = useState(() =>
+    shuffleChanged(
+      steps.map((_, i) => i),
+      Math.random,
+    ),
+  );
   const [placed, setPlaced] = useState<number[]>([]);
 
   if (picked) {
@@ -65,7 +78,11 @@ export function OrderSteps({ steps, onDone, picked }: OrderStepsProps) {
       {placed.length > 0 ? (
         <YStack gap="$2">
           {placed.map((step, pos) => (
-            <Tap key={step} label={`Step ${pos + 1}: ${steps[step]}. Tap to send back`} onPress={() => setPlaced(placed.filter((s) => s !== step))}>
+            <Tap
+              key={step}
+              label={`Step ${pos + 1}: ${steps[step]}. Tap to send back`}
+              onPress={() => setPlaced(placed.filter((s) => s !== step))}
+            >
               <StepRow n={pos + 1} text={steps[step]} tone="placed" />
             </Tap>
           ))}

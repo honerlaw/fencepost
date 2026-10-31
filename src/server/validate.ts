@@ -7,7 +7,11 @@ export const MAX_BODY_BYTES = 4 * 1024;
 /** A flagged card carries its code and options, so the flag body gets a little more room. */
 export const MAX_FLAG_BODY_BYTES = 8 * 1024;
 
-const deviceId = z.string().min(8).max(64).regex(/^[A-Za-z0-9-]+$/);
+const deviceId = z
+  .string()
+  .min(8)
+  .max(64)
+  .regex(/^[A-Za-z0-9-]+$/);
 
 const CardsRequest = z.strictObject({
   deviceId,

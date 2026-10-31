@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { decideFetch, errorCodeForStatus, fetchFailed, fetchStarted, fetchSucceeded, initialFetchState } from './fetch-policy';
+import {
+  decideFetch,
+  errorCodeForStatus,
+  fetchFailed,
+  fetchStarted,
+  fetchSucceeded,
+  initialFetchState,
+} from './fetch-policy';
 
 const ctx = (over: Partial<{ queued: number; sessionStarted: boolean; answers: number }> = {}) => ({
   queued: 0,
@@ -51,6 +58,12 @@ describe('retry policy', () => {
   });
 
   it('maps HTTP statuses to error codes', () => {
-    expect([429, 400, 413, 503, 500].map(errorCodeForStatus)).toEqual(['rate_limited', 'bad_request', 'bad_request', 'unavailable', 'upstream_error']);
+    expect([429, 400, 413, 503, 500].map(errorCodeForStatus)).toEqual([
+      'rate_limited',
+      'bad_request',
+      'bad_request',
+      'unavailable',
+      'upstream_error',
+    ]);
   });
 });

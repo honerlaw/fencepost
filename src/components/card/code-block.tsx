@@ -25,7 +25,17 @@ function splitIndent(line: string): [string, string] {
   return [line.slice(0, line.length - body.length), body];
 }
 
-function CodeLine({ index, line, state, onPick }: { index: number; line: string; state: 'idle' | 'right' | 'wrong' | 'flaw'; onPick?: () => void }) {
+function CodeLine({
+  index,
+  line,
+  state,
+  onPick,
+}: {
+  index: number;
+  line: string;
+  state: 'idle' | 'right' | 'wrong' | 'flaw';
+  onPick?: () => void;
+}) {
   const [box, setBox] = useState<Box | null>(null);
   const [indent, body] = splitIndent(line);
   const tint = state === 'right' ? '$greenWash' : state === 'wrong' ? '$redWash' : undefined;
@@ -72,10 +82,20 @@ export function CodeBlock({ code, onPickLine, reveal }: CodeBlockProps) {
   };
   return (
     <YStack bg="$wash" rounded="$3" borderWidth={1} borderColor="$rule" overflow="hidden">
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 12, paddingRight: 24 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingVertical: 12, paddingRight: 24 }}
+      >
         <YStack gap={onPickLine || reveal ? 2 : 0}>
           {code.map((line, i) => (
-            <CodeLine key={i} index={i} line={line} state={stateFor(i)} onPick={onPickLine && !reveal ? () => onPickLine(i) : undefined} />
+            <CodeLine
+              key={i}
+              index={i}
+              line={line}
+              state={stateFor(i)}
+              onPick={onPickLine && !reveal ? () => onPickLine(i) : undefined}
+            />
           ))}
         </YStack>
       </ScrollView>

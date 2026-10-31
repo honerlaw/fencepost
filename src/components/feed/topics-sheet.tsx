@@ -58,11 +58,30 @@ export function TopicsSheet({ progress, onChange, onClose }: TopicsSheetProps) {
   const accuracy = progress.answered === 0 ? '–' : `${Math.round((progress.correct / progress.answered) * 100)}%`;
   return (
     <YStack position="absolute" t={0} l={0} r={0} b={0} z={20} justify="flex-end">
-      <Animated.View entering={FadeIn.duration(180)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-        <Tap label="Close topics" onPress={onClose} flex={1} bg="rgba(0,0,0,0.35)" cursor="default" pressStyle={{ opacity: 1 }} />
+      <Animated.View
+        entering={FadeIn.duration(180)}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      >
+        <Tap
+          label="Close topics"
+          onPress={onClose}
+          flex={1}
+          bg="rgba(0,0,0,0.35)"
+          cursor="default"
+          pressStyle={{ opacity: 1 }}
+        />
       </Animated.View>
       <Animated.View entering={SlideInDown.duration(260)} style={{ maxHeight: '88%' }}>
-        <YStack testID="topics-sheet" role="dialog" aria-label="Topics and stats" bg="$card" borderTopLeftRadius={20} borderTopRightRadius={20} borderWidth={1} borderColor="$rule">
+        <YStack
+          testID="topics-sheet"
+          role="dialog"
+          aria-label="Topics and stats"
+          bg="$card"
+          borderTopLeftRadius={20}
+          borderTopRightRadius={20}
+          borderWidth={1}
+          borderColor="$rule"
+        >
           <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 20 + insets.bottom, gap: 16 }}>
             <XStack items="center" justify="space-between">
               <Text fontFamily="$display" fontWeight="800" fontSize="$8" color="$ink">
@@ -75,13 +94,25 @@ export function TopicsSheet({ progress, onChange, onClose }: TopicsSheetProps) {
               </Tap>
             </XStack>
             <YStack gap="$2">
-              <Text fontFamily="$body" fontWeight="700" fontSize={12} letterSpacing={1} color="$blue" textTransform="uppercase">
+              <Text
+                fontFamily="$body"
+                fontWeight="700"
+                fontSize={12}
+                letterSpacing={1}
+                color="$blue"
+                textTransform="uppercase"
+              >
                 Topics
               </Text>
               <XStack flexWrap="wrap" gap="$2">
                 <Chip label="All topics" on={selected.length === 0} onPress={() => onChange([])} />
                 {DOMAINS.map((d) => (
-                  <Chip key={d.id} label={d.name} on={selected.includes(d.id)} onPress={() => onChange(toggleDomain(selected, d.id))} />
+                  <Chip
+                    key={d.id}
+                    label={d.name}
+                    on={selected.includes(d.id)}
+                    onPress={() => onChange(toggleDomain(selected, d.id))}
+                  />
                 ))}
               </XStack>
               <Text fontFamily="$body" fontSize="$2" color="$muted">
@@ -89,7 +120,14 @@ export function TopicsSheet({ progress, onChange, onClose }: TopicsSheetProps) {
               </Text>
             </YStack>
             <YStack gap="$2">
-              <Text fontFamily="$body" fontWeight="700" fontSize={12} letterSpacing={1} color="$blue" textTransform="uppercase">
+              <Text
+                fontFamily="$body"
+                fontWeight="700"
+                fontSize={12}
+                letterSpacing={1}
+                color="$blue"
+                textTransform="uppercase"
+              >
                 Stats
               </Text>
               <XStack flexWrap="wrap" gap="$2">
@@ -100,7 +138,8 @@ export function TopicsSheet({ progress, onChange, onClose }: TopicsSheetProps) {
               </XStack>
             </YStack>
             <Text fontFamily="$body" fontSize="$3" color="$muted">
-              Puzzles are written live by an AI model, so now and then one is wrong. If you think so, tap “Card was wrong” after answering.
+              Puzzles are written live by an AI model, so now and then one is wrong. If you think so, tap “Card was
+              wrong” after answering.
             </Text>
           </ScrollView>
         </YStack>

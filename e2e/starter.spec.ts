@@ -1,6 +1,17 @@
 import { expect, test } from '@playwright/test';
 
-import { answerStarter, card, nextCard, open, openTopics, RIGHT_WORDS, STARTER, stubApi, swipeUp, WRONG_WORDS } from './helpers';
+import {
+  answerStarter,
+  card,
+  nextCard,
+  open,
+  openTopics,
+  RIGHT_WORDS,
+  STARTER,
+  stubApi,
+  swipeUp,
+  WRONG_WORDS,
+} from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await stubApi(page);
@@ -12,7 +23,10 @@ test('every starter card can be answered right, with the verdict, points and exp
     await answerStarter(page, c, true);
     const verdict = page.getByTestId('verdict');
     const text = (await verdict.textContent()) ?? '';
-    expect(RIGHT_WORDS.some((w) => text.includes(w)), text).toBe(true);
+    expect(
+      RIGHT_WORDS.some((w) => text.includes(w)),
+      text,
+    ).toBe(true);
     await expect(page.getByTestId('verdict-points')).not.toHaveText('+0');
     await expect(verdict).toContainText(c.why);
     await expect(page.getByRole('button', { name: 'Card was wrong' })).toHaveCount(0);
@@ -28,7 +42,10 @@ test('every starter card can be answered wrong, with +0 and a reveal', async ({ 
     await answerStarter(page, c, false);
     const verdict = page.getByTestId('verdict');
     const text = (await verdict.textContent()) ?? '';
-    expect(WRONG_WORDS.some((w) => text.includes(w)), text).toBe(true);
+    expect(
+      WRONG_WORDS.some((w) => text.includes(w)),
+      text,
+    ).toBe(true);
     await expect(page.getByTestId('verdict-points')).toHaveText('+0');
     await expect(verdict).toContainText(c.why);
     if (c.type === 'flaw') {
@@ -93,7 +110,9 @@ test('card was wrong appears only after a wrong answer and takes it off the coun
 test('every button in the card, verdict, top bar and topics sheet has a name', async ({ page }) => {
   await open(page);
   const check = async () => {
-    const names = await page.getByRole('button').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? e.textContent ?? ''));
+    const names = await page
+      .getByRole('button')
+      .evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? e.textContent ?? ''));
     expect(names.length).toBeGreaterThan(0);
     for (const n of names) expect(n.trim()).not.toBe('');
   };

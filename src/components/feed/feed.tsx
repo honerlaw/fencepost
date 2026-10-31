@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { GestureDetector, ScrollView, usePanGesture } from 'react-native-gesture-handler';
-import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { YStack } from 'tamagui';
 
@@ -91,7 +97,8 @@ export function Feed() {
     onDeactivate: (e) => {
       const s = scroll.current;
       // Mid-scroll means momentum is still running or there is more card below.
-      if (e.translationY <= -SWIPE_DISTANCE && canSwipeAdvance({ answered, scrolling: s.momentum || !s.atEnd })) goNext();
+      if (e.translationY <= -SWIPE_DISTANCE && canSwipeAdvance({ answered, scrolling: s.momentum || !s.atEnd }))
+        goNext();
     },
   });
 
@@ -101,7 +108,11 @@ export function Feed() {
   };
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
-    Object.assign(scroll.current, { y: contentOffset.y, height: layoutMeasurement.height, content: contentSize.height });
+    Object.assign(scroll.current, {
+      y: contentOffset.y,
+      height: layoutMeasurement.height,
+      content: contentSize.height,
+    });
     updateAtEnd();
   };
 
@@ -136,7 +147,9 @@ export function Feed() {
               {slot.kind === 'card' ? (
                 <>
                   <CardView card={slot.card} result={slot.result} onAnswer={onAnswer} onSkip={actions.skip} />
-                  {slot.result ? <VerdictPanel card={slot.card} result={slot.result} onNext={goNext} onFlag={actions.flagWrong} /> : null}
+                  {slot.result ? (
+                    <VerdictPanel card={slot.card} result={slot.result} onNext={goNext} onFlag={actions.flagWrong} />
+                  ) : null}
                 </>
               ) : slot.kind === 'welcome' ? (
                 <WelcomeCard progress={game.progress} onDealIn={actions.dealIn} />
@@ -150,7 +163,9 @@ export function Feed() {
         </GestureDetector>
       </SafeAreaView>
       <Toasts toasts={toasts} onDone={actions.dismissToast} />
-      {menuOpen ? <TopicsSheet progress={game.progress} onChange={actions.setDomains} onClose={() => setMenuOpen(false)} /> : null}
+      {menuOpen ? (
+        <TopicsSheet progress={game.progress} onChange={actions.setDomains} onClose={() => setMenuOpen(false)} />
+      ) : null}
     </YStack>
   );
 }

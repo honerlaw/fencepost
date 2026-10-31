@@ -52,7 +52,11 @@ test('generated cards play, the request carries the chosen topics, and stats add
 test('a 503 shows the error card with Try again, and rematches stay playable', async ({ page }) => {
   // Batches start at least 20 s apart (MIN_FETCH_GAP_MS), so the retries below wait out that gap.
   test.setTimeout(90_000);
-  const requests = await stubApi(page, { status: 503, body: '{"error":"unavailable"}', headers: { 'content-type': 'application/json' } });
+  const requests = await stubApi(page, {
+    status: 503,
+    body: '{"error":"unavailable"}',
+    headers: { 'content-type': 'application/json' },
+  });
   await open(page);
   await answerStarter(page, STARTER[0], false);
   await nextCard(page);
@@ -79,7 +83,11 @@ test('a 503 shows the error card with Try again, and rematches stay playable', a
 });
 
 test('a 429 is never retried automatically', async ({ page }) => {
-  const requests = await stubApi(page, { status: 429, body: '{"error":"rate_limited"}', headers: { 'content-type': 'application/json', 'retry-after': '20' } });
+  const requests = await stubApi(page, {
+    status: 429,
+    body: '{"error":"rate_limited"}',
+    headers: { 'content-type': 'application/json', 'retry-after': '20' },
+  });
   await open(page);
   await answerStarter(page, STARTER[0], true);
   await expect.poll(() => requests.length).toBe(1);

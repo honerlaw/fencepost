@@ -28,7 +28,11 @@ describe('scoring', () => {
   it('scores 100 base, 300 for a boss, doubled on a 2x card', () => {
     expect(scoreAnswer({ correct: true, boss: false, double: false, combo: 1 }).points).toBe(100);
     expect(scoreAnswer({ correct: true, boss: true, double: false, combo: 1 }).points).toBe(300);
-    expect(scoreAnswer({ correct: true, boss: false, double: true, combo: 3 })).toEqual({ points: 300, multiplier: 1.5, doubled: true });
+    expect(scoreAnswer({ correct: true, boss: false, double: true, combo: 3 })).toEqual({
+      points: 300,
+      multiplier: 1.5,
+      doubled: true,
+    });
     expect(scoreAnswer({ correct: true, boss: true, double: false, combo: 12 }).points).toBe(900);
   });
 
@@ -45,19 +49,35 @@ describe('daily streak', () => {
   });
 
   it('starts at 1 for a first answer', () => {
-    expect(updateStreak({ streak: 0, lastDay: '' }, '2026-10-29')).toEqual({ streak: 1, lastDay: '2026-10-29', increased: false });
+    expect(updateStreak({ streak: 0, lastDay: '' }, '2026-10-29')).toEqual({
+      streak: 1,
+      lastDay: '2026-10-29',
+      increased: false,
+    });
   });
 
   it('does not change on a later answer the same day', () => {
-    expect(updateStreak({ streak: 4, lastDay: '2026-10-29' }, '2026-10-29')).toEqual({ streak: 4, lastDay: '2026-10-29', increased: false });
+    expect(updateStreak({ streak: 4, lastDay: '2026-10-29' }, '2026-10-29')).toEqual({
+      streak: 4,
+      lastDay: '2026-10-29',
+      increased: false,
+    });
   });
 
   it('goes up by one the next day', () => {
-    expect(updateStreak({ streak: 4, lastDay: '2026-10-28' }, '2026-10-29')).toEqual({ streak: 5, lastDay: '2026-10-29', increased: true });
+    expect(updateStreak({ streak: 4, lastDay: '2026-10-28' }, '2026-10-29')).toEqual({
+      streak: 5,
+      lastDay: '2026-10-29',
+      increased: true,
+    });
   });
 
   it('resets to 1 after a gap of 2+ days', () => {
-    expect(updateStreak({ streak: 9, lastDay: '2026-10-26' }, '2026-10-29')).toEqual({ streak: 1, lastDay: '2026-10-29', increased: false });
+    expect(updateStreak({ streak: 9, lastDay: '2026-10-26' }, '2026-10-29')).toEqual({
+      streak: 1,
+      lastDay: '2026-10-29',
+      increased: false,
+    });
   });
 
   it('shows 0 once the last answer was before yesterday', () => {
@@ -72,7 +92,16 @@ describe('ranks', () => {
   it('maps XP to rank names at the thresholds', () => {
     const at = (xp: number) => rankFor(xp).name;
     expect([0, 799, 800, 2500, 6000, 12000, 25000, 50000, 100000, 1e7].map(at)).toEqual([
-      'Intern', 'Intern', 'Junior', 'Mid-level', 'Senior', 'Staff', 'Principal', 'Distinguished', 'Fellow', 'Fellow',
+      'Intern',
+      'Intern',
+      'Junior',
+      'Mid-level',
+      'Senior',
+      'Staff',
+      'Principal',
+      'Distinguished',
+      'Fellow',
+      'Fellow',
     ]);
   });
 
@@ -100,7 +129,9 @@ describe('verdicts, haptics and celebrations', () => {
   const noStreak = { streak: 1, lastDay: '2026-10-29', increased: false };
 
   it('toasts a promotion', () => {
-    expect(celebrationsFor({ xpBefore: 5900, xpAfter: 6100, combo: 1, streak: noStreak })).toEqual(['Promoted to Senior']);
+    expect(celebrationsFor({ xpBefore: 5900, xpAfter: 6100, combo: 1, streak: noStreak })).toEqual([
+      'Promoted to Senior',
+    ]);
   });
 
   it('toasts every 5th answer in a row', () => {
@@ -110,7 +141,9 @@ describe('verdicts, haptics and celebrations', () => {
   });
 
   it('toasts a streak going up on the first answer of the day', () => {
-    expect(celebrationsFor({ xpBefore: 0, xpAfter: 0, combo: 0, streak: { streak: 4, lastDay: '', increased: true } })).toEqual(['4-day streak']);
+    expect(
+      celebrationsFor({ xpBefore: 0, xpAfter: 0, combo: 0, streak: { streak: 4, lastDay: '', increased: true } }),
+    ).toEqual(['4-day streak']);
   });
 });
 

@@ -11,11 +11,18 @@ export const WRONG_WORDS = ['Not quite.', 'Bug escaped.', 'Rolled back.', 'Close
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** Stubs /api/* so starter-deck tests never touch the (unconfigured) server routes. */
-export async function stubApi(page: Page, cards: { status: number; body?: string; headers?: Record<string, string> } = { status: 503 }) {
+export async function stubApi(
+  page: Page,
+  cards: { status: number; body?: string; headers?: Record<string, string> } = { status: 503 },
+) {
   const requests: unknown[] = [];
   await page.route('**/api/cards', async (route) => {
     requests.push(route.request().postDataJSON());
-    await route.fulfill({ status: cards.status, body: cards.body ?? '', headers: cards.headers ?? { 'content-type': 'application/x-ndjson' } });
+    await route.fulfill({
+      status: cards.status,
+      body: cards.body ?? '',
+      headers: cards.headers ?? { 'content-type': 'application/x-ndjson' },
+    });
   });
   await page.route('**/api/flag', (route) => route.fulfill({ status: 204 }));
   return requests;

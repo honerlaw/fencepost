@@ -13,10 +13,7 @@ app.disable('x-powered-by');
 // (src/server/handlers.ts clientIp), so Express's `trust proxy` is not needed.
 
 app.use(express.static(CLIENT_DIR));
-app.all(
-  '/{*all}',
-  createRequestHandler({ build: SERVER_DIR, environment: process.env.NODE_ENV })
-);
+app.all('/{*all}', createRequestHandler({ build: SERVER_DIR, environment: process.env.NODE_ENV }));
 
 const port = Number(process.env.PORT) || 8080;
 app.listen(port, () => {

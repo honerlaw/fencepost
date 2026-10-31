@@ -23,7 +23,9 @@ export function handlersFromEnv(env: Record<string, string | undefined> = proces
   const apiKey = env.OPENROUTER_API_KEY;
   const models = [env.CARD_MODEL, env.CARD_MODEL_FALLBACK].filter((m): m is string => !!m);
   const configured = !!apiKey && !!env.CARD_MODEL;
-  const openrouter = configured ? createOpenRouter({ apiKey, ...(env.OPENROUTER_BASE_URL ? { baseURL: env.OPENROUTER_BASE_URL } : {}) }) : null;
+  const openrouter = configured
+    ? createOpenRouter({ apiKey, ...(env.OPENROUTER_BASE_URL ? { baseURL: env.OPENROUTER_BASE_URL } : {}) })
+    : null;
 
   return createHandlers({
     source: openrouter
@@ -39,7 +41,11 @@ export function handlersFromEnv(env: Record<string, string | undefined> = proces
     behindFly: !!env.FLY_APP_NAME,
     limits: {
       // One batch per 20 s and 60 a day per device; a shared IP (an office, a carrier NAT) gets more room.
-      cardsDevice: createRateLimiter({ burst: 1, refillMs: MIN_FETCH_GAP_MS, perDay: intEnv(env, 'RATE_LIMIT_PER_DAY', 60) }),
+      cardsDevice: createRateLimiter({
+        burst: 1,
+        refillMs: MIN_FETCH_GAP_MS,
+        perDay: intEnv(env, 'RATE_LIMIT_PER_DAY', 60),
+      }),
       cardsIp: createRateLimiter({ burst: 6, refillMs: 10 * SECOND, perDay: 600 }),
       flagDevice: createRateLimiter({ burst: 5, refillMs: MINUTE, perDay: 100 }),
       flagIp: createRateLimiter({ burst: 20, refillMs: 15 * SECOND }),

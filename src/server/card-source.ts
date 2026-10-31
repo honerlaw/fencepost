@@ -44,7 +44,9 @@ export interface LiveSourceOptions {
  * `normalize`, so every element arrives in order (keeping plan slots aligned) and
  * invalid ones are counted as dropped instead of vanishing.
  */
-const element = jsonSchema<unknown>(() => zodSchema(RawCardSchema).jsonSchema, { validate: (value) => ({ success: true, value }) });
+const element = jsonSchema<unknown>(() => zodSchema(RawCardSchema).jsonSchema, {
+  validate: (value) => ({ success: true, value }),
+});
 
 export function createLiveCardSource(opts: LiveSourceOptions): CardSource {
   async function run(modelId: string, params: BatchParams, onCard: (card: Card) => void): Promise<BatchStats> {
@@ -65,7 +67,9 @@ export function createLiveCardSource(opts: LiveSourceOptions): CardSource {
     let dropped = 0;
     for await (const raw of result.elementStream) {
       const slot = params.plan[index++];
-      const card = slot ? normalize(raw, { domain: params.domain, boss: slot.boss, rng: opts.rng, newId: opts.newId }) : null;
+      const card = slot
+        ? normalize(raw, { domain: params.domain, boss: slot.boss, rng: opts.rng, newId: opts.newId })
+        : null;
       if (!card) {
         dropped++;
         continue;
@@ -81,7 +85,7 @@ export function createLiveCardSource(opts: LiveSourceOptions): CardSource {
     if (sent === 0 && !params.signal.aborted) throw new ModelFailedError(`no valid cards (${dropped} dropped)`);
     const usage = await result.usage.then(
       (u) => ({ input: u.inputTokens ?? null, output: u.outputTokens ?? null }),
-      () => ({ input: null, output: null })
+      () => ({ input: null, output: null }),
     );
     return { model: modelId, sent, dropped, usage };
   }

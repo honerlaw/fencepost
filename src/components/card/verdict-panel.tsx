@@ -26,12 +26,33 @@ export function VerdictPanel({ card, result, onNext, onFlag }: VerdictPanelProps
   const { correct, score } = result;
   return (
     <Animated.View entering={FadeInDown.duration(280)}>
-      <YStack testID="verdict" bg="$card" rounded="$5" borderWidth={1} borderColor={correct ? '$green' : '$red'} p="$4" gap="$3">
+      <YStack
+        testID="verdict"
+        bg="$card"
+        rounded="$5"
+        borderWidth={1}
+        borderColor={correct ? '$green' : '$red'}
+        p="$4"
+        gap="$3"
+      >
         <XStack items="center" justify="space-between" gap="$3">
-          <Text fontFamily="$marker" fontWeight="700" fontSize={30} lineHeight={38} color={correct ? '$green' : '$red'} style={{ transform: [{ rotate: '-2deg' }] }}>
+          <Text
+            fontFamily="$marker"
+            fontWeight="700"
+            fontSize={30}
+            lineHeight={38}
+            color={correct ? '$green' : '$red'}
+            style={{ transform: [{ rotate: '-2deg' }] }}
+          >
             {result.verdict}
           </Text>
-          <Text testID="verdict-points" fontFamily="$display" fontWeight="800" fontSize="$7" color={correct ? '$ink' : '$muted'}>
+          <Text
+            testID="verdict-points"
+            fontFamily="$display"
+            fontWeight="800"
+            fontSize="$7"
+            color={correct ? '$ink' : '$muted'}
+          >
             +{score.points}
           </Text>
         </XStack>

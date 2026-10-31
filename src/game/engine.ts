@@ -1,6 +1,25 @@
 import { normalizeGenerated } from './incoming';
-import { celebrationsFor, hapticFor, localDay, rollDouble, scoreAnswer, updateStreak, verdictWord, type HapticPattern, type Score } from './rules';
-import { decideFetch, fetchFailed, fetchStarted, fetchSucceeded, initialFetchState, type FetchDecision, type FetchErrorCode, type FetchState } from './fetch-policy';
+import {
+  celebrationsFor,
+  hapticFor,
+  localDay,
+  rollDouble,
+  scoreAnswer,
+  updateStreak,
+  verdictWord,
+  type HapticPattern,
+  type Score,
+} from './rules';
+import {
+  decideFetch,
+  fetchFailed,
+  fetchStarted,
+  fetchSucceeded,
+  initialFetchState,
+  type FetchDecision,
+  type FetchErrorCode,
+  type FetchState,
+} from './fetch-policy';
 import type { Card, DomainId, PlayedCard, Progress, Rng } from './types';
 
 export const MAX_MISSED = 30;
@@ -230,7 +249,8 @@ export function advance(state: GameState, deps: Deps): GameState {
     return serve({ ...state, queue: rest }, served, false);
   }
   if (rematch) return serve(state, { ...rematch, rematch: true }, true);
-  if (state.fetch.error && !state.fetch.inFlight) return { ...state, current: { kind: 'error', code: state.fetch.error.code } };
+  if (state.fetch.error && !state.fetch.inFlight)
+    return { ...state, current: { kind: 'error', code: state.fetch.error.code } };
   return { ...state, current: { kind: 'loading', since: deps.now } };
 }
 
@@ -242,7 +262,11 @@ export function isWaiting(state: GameState): boolean {
 // ---- Fetch lifecycle ----
 
 export function nextFetch(state: GameState): FetchDecision {
-  return decideFetch(state.fetch, { queued: state.queue.length, sessionStarted: state.sessionStarted, answers: state.answers });
+  return decideFetch(state.fetch, {
+    queued: state.queue.length,
+    sessionStarted: state.sessionStarted,
+    answers: state.answers,
+  });
 }
 
 export function beginFetch(state: GameState, decision: FetchDecision | 'manual', deps: Deps): GameState {
@@ -266,7 +290,11 @@ export function applyBatchEvent(state: GameState, ev: BatchEvent, deps: Deps): G
     case 'card': {
       const card = normalizeGenerated(ev.card);
       if (!card) return state;
-      const next = { ...state, queue: [...state.queue, card], fetch: { ...state.fetch, received: state.fetch.received + 1 } };
+      const next = {
+        ...state,
+        queue: [...state.queue, card],
+        fetch: { ...state.fetch, received: state.fetch.received + 1 },
+      };
       // The loading card is swapped for the first card the moment it arrives.
       return isWaiting(next) ? advance(next, deps) : next;
     }

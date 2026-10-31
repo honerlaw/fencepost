@@ -11,7 +11,13 @@ type TapProps = Omit<ComponentProps<typeof YStack>, 'role' | 'aria-label' | 'onP
 /** A press that travels further than this is a drag (a swipe or scroll), not a tap. */
 const SLOP = 10;
 
-type PointLike = { nativeEvent?: { pageX?: number; pageY?: number }; pageX?: number; pageY?: number; clientX?: number; clientY?: number };
+type PointLike = {
+  nativeEvent?: { pageX?: number; pageY?: number };
+  pageX?: number;
+  pageY?: number;
+  clientX?: number;
+  clientY?: number;
+};
 
 function pointOf(e: unknown): { x: number; y: number } | null {
   const ev = e as PointLike | undefined;
