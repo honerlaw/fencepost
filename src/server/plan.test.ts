@@ -23,7 +23,7 @@ describe('plan maker', () => {
     expect(withBoss / N).toBeCloseTo(1 - 0.82 ** 5, 1);
     // A single slot is a boss 18% of the time.
     let first = 0;
-    for (let i = 0; i < N; i++) if (makePlan(1, rng)[0].boss) first++;
+    for (let i = 0; i < N; i++) if (makePlan(1, rng)[0]!.boss) first++;
     expect(first / N).toBeGreaterThan(0.165);
     expect(first / N).toBeLessThan(0.195);
   });
@@ -33,10 +33,10 @@ describe('plan maker', () => {
     const counts: Record<string, number> = {};
     const N = 40_000;
     for (let i = 0; i < N; i++) {
-      const [slot] = makePlan(1, rng);
+      const slot = makePlan(1, rng)[0]!;
       counts[slot.type] = (counts[slot.type] ?? 0) + 1;
     }
-    for (const [type, weight] of Object.entries(TYPE_WEIGHTS)) expect(counts[type] / N).toBeCloseTo(weight / 100, 1);
+    for (const [type, weight] of Object.entries(TYPE_WEIGHTS)) expect(counts[type]! / N).toBeCloseTo(weight / 100, 1);
   });
 });
 

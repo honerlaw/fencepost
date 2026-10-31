@@ -22,7 +22,7 @@ import {
 
 describe('scoring', () => {
   it('steps the multiplier every 3 in a row, capped at 3x', () => {
-    expect([1, 2, 3, 5, 6, 9, 12, 30].map(multiplierFor)).toEqual([1, 1, 1.5, 1.5, 2, 2.5, 3, 3]);
+    expect([1, 2, 3, 5, 6, 9, 12, 30].map((combo) => multiplierFor(combo))).toEqual([1, 1, 1.5, 1.5, 2, 2.5, 3, 3]);
   });
 
   it('scores 100 base, 300 for a boss, doubled on a 2x card', () => {
@@ -90,8 +90,7 @@ describe('daily streak', () => {
 
 describe('ranks', () => {
   it('maps XP to rank names at the thresholds', () => {
-    const at = (xp: number) => rankFor(xp).name;
-    expect([0, 799, 800, 2500, 6000, 12_000, 25_000, 50_000, 100_000, 1e7].map(at)).toEqual([
+    expect([0, 799, 800, 2500, 6000, 12_000, 25_000, 50_000, 100_000, 1e7].map((xp) => rankFor(xp).name)).toEqual([
       'Intern',
       'Intern',
       'Junior',

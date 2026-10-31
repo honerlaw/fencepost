@@ -191,7 +191,7 @@ describe('rematches', () => {
     const fresh = modelCard();
     const s = wrong(playing([fresh], { missed: old }));
     expect(s.progress.missed).toHaveLength(MAX_MISSED);
-    expect(s.progress.missed[0].id).toBe(old[1].id);
+    expect(s.progress.missed[0]!.id).toBe(old[1]!.id);
     expect(s.progress.missed.at(-1)!.id).toBe(fresh.id);
   });
 
@@ -203,7 +203,7 @@ describe('rematches', () => {
     }
     expect(
       loadStarterDeck(seededRng(1))
-        .filter((c) => c.double)
+        .filter((c) => c.double === true)
         .map((c) => c.id),
     ).toEqual(['starter-3']);
   });
@@ -224,7 +224,7 @@ describe('rematches', () => {
       'starter-5',
       'starter-6',
     ]);
-    expect(served.filter((c) => c.double).map((c) => c.id)).toEqual(['starter-3']);
+    expect(served.filter((c) => c.double === true).map((c) => c.id)).toEqual(['starter-3']);
   });
 });
 

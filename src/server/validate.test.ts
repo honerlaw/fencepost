@@ -53,7 +53,7 @@ describe('request validation', () => {
       ok: true,
       value: { deviceId: 'device-123', domains: ['cache'], recent: [] },
     });
-    expect(parseCardsRequest({ deviceId: 'device-123', recent: Array.from({length: 21}).fill('t') }).ok).toBe(false);
+    expect(parseCardsRequest({ deviceId: 'device-123', recent: Array.from({ length: 21 }, () => 't') }).ok).toBe(false);
   });
 
   it('validates flag bodies', () => {

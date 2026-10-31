@@ -146,8 +146,8 @@ describe('starter deck', () => {
     expect(a).toHaveLength(6);
     expect(a.map((c) => c.id)).toEqual(['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5', 'starter-6']);
     expect(b.map((c) => c.id)).toEqual(a.map((c) => c.id));
-    expect(a.every((c) => c.starter)).toBe(true);
-    expect(a.filter((c) => c.double).map((c) => c.id)).toEqual(['starter-3']);
+    expect(a.every((c) => c.starter === true)).toBe(true);
+    expect(a.filter((c) => c.double === true).map((c) => c.id)).toEqual(['starter-3']);
     expect(a.map((c) => c.type)).toEqual(['flaw', 'model', 'break', 'trace', 'order', 'flaw']);
   });
 

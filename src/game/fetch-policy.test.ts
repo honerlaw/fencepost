@@ -58,7 +58,7 @@ describe('retry policy', () => {
   });
 
   it('maps HTTP statuses to error codes', () => {
-    expect([429, 400, 413, 503, 500].map(errorCodeForStatus)).toEqual([
+    expect([429, 400, 413, 503, 500].map((status) => errorCodeForStatus(status))).toEqual([
       'rate_limited',
       'bad_request',
       'bad_request',

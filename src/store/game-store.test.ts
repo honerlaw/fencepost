@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import type { StateStorage } from 'zustand/middleware';
 
 import { BATCH_DEADLINE_MS, MIN_FETCH_GAP_MS } from '@/game/fetch-policy';
 import type { Card } from '@/game/types';
 import { debounceStorage } from './debounced-storage';
 import { createGameStore, STORAGE_KEY, type FetchBatch } from './game-store';
+
+const PersistedAnswers = z.object({ state: z.object({ progress: z.object({ answered: z.number() }) }) });
 
 const DAY = 24 * 60 * 60 * 1000;
 const T0 = new Date(2026, 9, 29, 12, 0).getTime();
@@ -13,9 +16,15 @@ function memoryStorage(): StateStorage & { data: Map<string, string> } {
   const data = new Map<string, string>();
   return {
     data,
-    getItem: async (name) => data.get(name) ?? null,
-    setItem: async (name, value) => void data.set(name, value),
-    removeItem: async (name) => void data.delete(name),
+    getItem: (name) => Promise.resolve(data.get(name) ?? null),
+    setItem: (name, value) => {
+      data.set(name, value);
+      return Promise.resolve();
+    },
+    removeItem: (name) => {
+      data.delete(name);
+      return Promise.resolve();
+    },
   };
 }
 
@@ -41,13 +50,12 @@ async function hydrated(store: ReturnType<typeof makeStore>['store']) {
 }
 
 function rightAnswer(card: Card): number | number[] {
-  if (card.type === 'order') return card.steps.map((_, i) => i);
-  return card.answer;
+  return card.type === 'order' ? card.steps.map((_, i) => i) : card.answer;
 }
 
 function wrongAnswer(card: Card): number | number[] {
-  if (card.type === 'order') return card.steps.map((_, i) => i).reverse();
-  return card.answer === 0 ? 1 : 0;
+  const wrongOption = 'answer' in card && card.answer === 0 ? 1 : 0;
+  return card.type === 'order' ? card.steps.map((_, i) => i).toReversed() : wrongOption;
 }
 
 function currentCard(store: ReturnType<typeof makeStore>['store']): Card {
@@ -55,6 +63,51 @@ function currentCard(store: ReturnType<typeof makeStore>['store']): Card {
   if (slot?.kind !== 'card') throw new Error(`expected a card, got ${slot?.kind}`);
   return slot.card;
 }
+
+const START = { now: T0 };
+
+const generatedCard = (n: number) => ({
+  id: `g${n}`,
+  type: 'model',
+  domain: 'cache',
+  title: `Gen ${n}`,
+  prompt: 'p',
+  why: 'w',
+  boss: false,
+  options: ['a', 'b', 'c'],
+  answer: 0,
+});
+
+/** A fetchBatch the test drives by hand: each call is recorded with its event sink and a resolver. */
+function manualBatches() {
+  const calls: { emit: Parameters<FetchBatch>[1]; finish: () => void; signal: AbortSignal }[] = [];
+  const fetchBatch: FetchBatch = (_req, onEvent, signal) =>
+    new Promise((resolve) => calls.push({ emit: onEvent, finish: () => resolve({ ok: true }), signal }));
+  return { calls, fetchBatch };
+}
+
+async function firstTimer(
+  fetchBatch: FetchBatch,
+  clock: { now: number } = START,
+  reportFlag: (deviceId: string, card: Card) => void = () => {},
+) {
+  const storage = debounceStorage(memoryStorage(), 1000);
+  const store = createGameStore({
+    storage,
+    now: () => clock.now,
+    rng: () => 0.5,
+    newId: () => 'device-x',
+    fetchBatch,
+    reportFlag,
+  });
+  await hydrated(store);
+  store.getState().begin();
+  return store;
+}
+
+const skipToLoading = (store: Awaited<ReturnType<typeof firstTimer>>) => {
+  while (store.getState().game?.current.kind === 'card') store.getState().skip();
+};
 
 describe('game store persistence', () => {
   it('rehydrates every progress field in a fresh store and continues the streak the next day', async () => {
@@ -103,7 +156,7 @@ describe('game store persistence', () => {
     second.store.getState().dealIn();
     // Nothing generated yet, so the missed card comes back as a rematch.
     const rematch = currentCard(second.store);
-    expect(rematch.id).toBe(saved.missed[0].id);
+    expect(rematch.id).toBe(saved.missed[0]!.id);
     second.store.getState().answer(rightAnswer(rematch));
     expect(second.store.getState().progress).toMatchObject({ streak: 2, answered: 7, deviceId: saved.deviceId });
   });
@@ -116,7 +169,8 @@ describe('game store persistence', () => {
     store.getState().answer(rightAnswer(currentCard(store)));
     expect(backing.data.has(STORAGE_KEY)).toBe(false);
     await storage.flush();
-    expect(JSON.parse(backing.data.get(STORAGE_KEY)!).state.progress.answered).toBe(1);
+    const persisted = PersistedAnswers.parse(JSON.parse(backing.data.get(STORAGE_KEY)!));
+    expect(persisted.state.progress.answered).toBe(1);
   });
 
   it('a failed write never rejects and is retried on the next flush', async () => {
@@ -141,22 +195,11 @@ describe('game store persistence', () => {
   });
 
   it('cancelling a batch keeps the cards that already arrived', async () => {
-    const card = (n: number) => ({
-      id: `g${n}`,
-      type: 'model',
-      domain: 'cache',
-      title: `Gen ${n}`,
-      prompt: 'p',
-      why: 'w',
-      boss: false,
-      options: ['a', 'b', 'c'],
-      answer: 0,
-    });
     let aborted = false;
     const partial: FetchBatch = (_req, onEvent, signal) => {
       onEvent({ event: 'start', domain: 'cache', count: 5 });
-      onEvent({ event: 'card', card: card(1) });
-      onEvent({ event: 'card', card: card(2) });
+      onEvent({ event: 'card', card: generatedCard(1) });
+      onEvent({ event: 'card', card: generatedCard(2) });
       signal.addEventListener('abort', () => (aborted = true));
       return new Promise(() => {});
     };
@@ -181,52 +224,9 @@ describe('game store persistence', () => {
 });
 
 describe('game store batches', () => {
-  const card = (n: number) => ({
-    id: `g${n}`,
-    type: 'model',
-    domain: 'cache',
-    title: `Gen ${n}`,
-    prompt: 'p',
-    why: 'w',
-    boss: false,
-    options: ['a', 'b', 'c'],
-    answer: 0,
-  });
-
-  /** A fetchBatch the test drives by hand: each call is recorded with its event sink and a resolver. */
-  function manualBatches() {
-    const calls: { emit: Parameters<FetchBatch>[1]; finish: () => void; signal: AbortSignal }[] = [];
-    const fetchBatch: FetchBatch = (_req, onEvent, signal) =>
-      new Promise((resolve) => calls.push({ emit: onEvent, finish: () => resolve({ ok: true }), signal }));
-    return { calls, fetchBatch };
-  }
-
   afterEach(() => {
     vi.useRealTimers();
   });
-
-  async function firstTimer(
-    fetchBatch: FetchBatch,
-    clock = { now: T0 },
-    reportFlag: (deviceId: string, card: Card) => void = () => {},
-  ) {
-    const storage = debounceStorage(memoryStorage(), 1000);
-    const store = createGameStore({
-      storage,
-      now: () => clock.now,
-      rng: () => 0.5,
-      newId: () => 'device-x',
-      fetchBatch,
-      reportFlag,
-    });
-    await hydrated(store);
-    store.getState().begin();
-    return store;
-  }
-
-  const skipToLoading = (store: Awaited<ReturnType<typeof firstTimer>>) => {
-    while (store.getState().game?.current.kind === 'card') store.getState().skip();
-  };
 
   it('skipping the whole starter deck fetches a batch instead of waiting forever', async () => {
     const { calls, fetchBatch } = manualBatches();
@@ -234,7 +234,7 @@ describe('game store batches', () => {
     skipToLoading(store);
     expect(store.getState().game?.current.kind).toBe('loading');
     expect(calls).toHaveLength(1);
-    calls[0].emit({ event: 'card', card: card(1) });
+    calls[0]!.emit({ event: 'card', card: generatedCard(1) });
     expect(currentCard(store).id).toBe('g1');
   });
 
@@ -244,7 +244,7 @@ describe('game store batches', () => {
     const store = await firstTimer(fetchBatch, clock);
     skipToLoading(store);
     store.getState().cancelFetch();
-    expect(calls[0].signal.aborted).toBe(true);
+    expect(calls[0]!.signal.aborted).toBe(true);
     expect(store.getState().game?.current).toEqual({ kind: 'error', code: 'network' });
     clock.now += MIN_FETCH_GAP_MS;
     store.getState().retry();
@@ -257,10 +257,10 @@ describe('game store batches', () => {
     const clock = { now: T0 };
     const store = await firstTimer(fetchBatch, clock);
     skipToLoading(store);
-    const a = calls[0];
+    const a = calls[0]!;
     clock.now += MIN_FETCH_GAP_MS;
     a.emit({ event: 'start', domain: 'cache', count: 5 });
-    a.emit({ event: 'card', card: card(1) });
+    a.emit({ event: 'card', card: generatedCard(1) });
     store.getState().answer(0);
     store.getState().next();
     expect(store.getState().game?.current.kind).toBe('loading');
@@ -275,7 +275,7 @@ describe('game store batches', () => {
     await Promise.resolve();
     expect(store.getState().game?.fetch).toMatchObject({ inFlight: true, error: null });
     expect(store.getState().game?.current.kind).toBe('loading');
-    calls[1].emit({ event: 'card', card: card(2) });
+    calls[1]!.emit({ event: 'card', card: generatedCard(2) });
     expect(currentCard(store).id).toBe('g2');
   });
 
@@ -285,8 +285,8 @@ describe('game store batches', () => {
     const clock = { now: T0 };
     const store = await firstTimer(fetchBatch, clock);
     skipToLoading(store);
-    calls[0].emit({ event: 'error', code: 'upstream_error' });
-    calls[0].finish();
+    calls[0]!.emit({ event: 'error', code: 'upstream_error' });
+    calls[0]!.finish();
     expect(store.getState().game?.current).toEqual({ kind: 'error', code: 'upstream_error' });
 
     clock.now += 5000;
@@ -306,7 +306,7 @@ describe('game store batches', () => {
     const store = await firstTimer(fetchBatch);
     skipToLoading(store);
     vi.advanceTimersByTime(BATCH_DEADLINE_MS);
-    expect(calls[0].signal.aborted).toBe(true);
+    expect(calls[0]!.signal.aborted).toBe(true);
     expect(store.getState().game?.current).toEqual({ kind: 'error', code: 'network' });
     expect(store.getState().game?.fetch.inFlight).toBe(false);
   });
@@ -320,7 +320,7 @@ describe('game store batches', () => {
       });
     const store = await firstTimer(fetchBatch);
     skipToLoading(store);
-    for (let n = 1; n <= 4; n++) failing.emit!({ event: 'card', card: card(n) });
+    for (let n = 1; n <= 4; n++) failing.emit!({ event: 'card', card: generatedCard(n) });
     failing.emit!({ event: 'done', sent: 4 });
     failing.reject!();
     await Promise.resolve();
