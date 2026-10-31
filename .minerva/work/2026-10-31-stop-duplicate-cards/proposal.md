@@ -30,12 +30,13 @@ There are two separate repeat paths on `main` (e4ec117).
 - Pending titles number at most 8 at fetch time: the current card, up to 5 starters, and up to 2 queued (`decideFetch` needs `queued <= LOW_WATER`, and manual retry only comes from the error card with an empty queue).
 - Fetching starts after the first answer, skip or "Deal me in", so a batch can arrive while starter cards remain. The serve order is starters, a due rematch, then the queue.
 - `e2e/generated.spec.ts:29` asserts `recent: ['Overlapping bookings']` on the first request with `toMatchObject`, which needs an exact array. e2e is in `ci-required` and isn't part of `npm run guard`. `e2e/` isn't a guarded path.
-- Generated cards reach no device until the Fly server is deployed, so the generated half of this fix has no visible effect on a phone until then. The starter half does, through an over-the-air update.
+- PR #7 deployed the Fly server while this unit was in progress, so generated cards now reach a device and both halves of this fix are visible on one.
+- PR #8 changed the app icons while this unit was in progress, which moved `main`'s fingerprint from `9d6c…` to `81a873c…`. The TestFlight build still has `9d6c…`, so the next deploy from `main` is a new build, not an over-the-air update.
 - Limits: 60 batches a device a day (`RATE_LIMIT_PER_DAY`), and `rate_limited` never retries on its own. About $0.06 and 45 s a batch (NOTES.md).
 
 ### Scope
 
-One work unit, one PR, unphased. No new dependency, no native change, no script or `.gitignore` change, so the fingerprint stays `9d6c…` and this ships as an update.
+One work unit, one PR, unphased. No new dependency, no native change, no script or `.gitignore` change, so this unit leaves the fingerprint where `main` has it.
 
 Out:
 - Saving the queue to disk. That's a cost saving. It means a card shown but never answered can come back in a later session, because it never reached `recent`.
@@ -87,7 +88,7 @@ Trade-offs that stand:
 6. Partial duplicates: the batch succeeds with the fresh cards only, and `received` counts only those (engine test).
 7. A generated card matching `progress.missed` is dropped, and that missed card is still served as a rematch (engine test).
 8. A player who answers, skips or flags some starter cards and restarts gets only the rest, with no XP awarded twice, and finishing them sets `starterDone`. A missed starter still comes back as a rematch. A player whose every starter title is in `recent` with `starterDone` false gets the welcome card with `starterDone` true (engine tests, a store test restarting from flushed saved progress, and an e2e test that answers two cards, reloads, and sees card 3 with XP unchanged).
-9. After `npm ci`, `npm run guard` passes, the e2e suite passes, and `node_modules/.bin/fingerprint fingerprint:generate --platform ios` still gives `9d6c4336399ee7354f3678b52cfe31dbd1b9b859`.
+9. After `npm ci`, `npm run guard` passes, the e2e suite passes, and `node_modules/.bin/fingerprint fingerprint:generate --platform ios` matches `main`, `81a873c2eaf82e29ed50c29e343a3e5e8363089c` after rebasing onto PR #7 and PR #8.
 
 Not verified by this unit: behaviour with the live model, which costs money and needs a throwaway harness, because `scripts/cards-eval.ts` sends `recent: []`; and behaviour on a device.
 
