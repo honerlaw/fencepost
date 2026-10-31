@@ -69,7 +69,7 @@ Everything here goes through the EAS CLI except linking GitHub, which it has no 
 7. Merge the `ascAppId` PR. `ascAppId` doesn't change the hash, so step 2's build still matches and this merge publishes an update. That's the first real test of the trigger. **It didn't fire:** PR #6 merged on 2026-10-31 and EAS recorded no `deploy-ios` run, so step 5 looks unfinished. EAS CLI can't show the link, so check it on expo.dev. The workflow's own build and upload path gets its first run at the next native change.
 8. On the first build, check that progress survives a restart (SQLite). Once the Fly server exists, check that a generated batch arrives, which proves the router `origin`.
 
-Signing credentials and the App Store Connect API key live on EAS, not in Doppler, because EAS has to hold them to sign and upload. They're one of two exceptions to "all secrets live in Doppler"; the other is the GitHub copy of the Fly token (see "Deploying the server"). None of them reach this repo or GitHub, and the workflow uses no token.
+Signing credentials and the App Store Connect API key live on EAS, not in Doppler, because EAS has to hold them to sign and upload. They're one of two exceptions to "all secrets live in Doppler"; the other is the GitHub copy of the Fly token (see "Deploying the server"). The EAS credentials never reach this repo or GitHub, and the iOS workflow uses no token.
 
 ### Day to day
 
@@ -92,7 +92,7 @@ Signing credentials and the App Store Connect API key live on EAS, not in Dopple
 
 ### One-time setup
 
-The Fly app `fencepost` already exists, in the personal org, because `onerlaw-llc` has overdue invoices and Fly refused to create it there. That placement is temporary: after clearing the invoices, `fly apps move fencepost --org onerlaw-llc` moves it. Whether the deploy token survives a move is unverified, so run the workflow by hand afterwards, and rotate the token if it fails.
+The Fly app `fencepost` already exists, in the personal org, because `onerlaw-llc` has overdue invoices and Fly refused to create it there. It has a shared IPv4 and an IPv6, allocated up front so the name resolves before the first deploy. The org placement is temporary: after clearing the invoices, `fly apps move fencepost --org onerlaw-llc` moves it. Whether the deploy token survives a move is unverified, so run the workflow by hand afterwards, and rotate the token if it fails.
 
 Steps 2 to 4 were done on 2026-10-31. They're kept here for rebuilding the app or rotating the token. Check step 1 before merging the workflow, because the merge is the first production deploy:
 
@@ -104,7 +104,7 @@ Steps 2 to 4 were done on 2026-10-31. They're kept here for rebuilding the app o
 3. Create a deploy token limited to this app, and keep it in the `prd_ci` Doppler branch config.
    ```sh
    doppler configs create prd_ci --project fencepost --environment prd
-   fly tokens create deploy -a fencepost -n github-actions -x 8760h | tr -d '\n' | doppler secrets set FLY_API_TOKEN --project fencepost --config prd_ci --silent >/dev/null
+   fly auth whoami && fly tokens create deploy -a fencepost -n github-actions -x 8760h | tr -d '\n' | doppler secrets set FLY_API_TOKEN --project fencepost --config prd_ci --silent >/dev/null
    ```
 4. Create the GitHub environment, restrict it to `main`, and give it the token.
    ```sh
@@ -122,7 +122,7 @@ The main-only branch policy on `production` is what stops a workflow edited on a
 gh api repos/honerlaw/fencepost/environments/production/deployment-branch-policies --jq '.branch_policies[].name'
 ```
 
-The only line it should print is `main`. Workflow changes reach `main` only with the `guardrails-approved` label.
+The only line it should print is `main`. A PR that changes a workflow needs the `guardrails-approved` label, which is an audit trail, not a security boundary (see `.minerva/knowledge/2026-10-31-reference-guardrail-limits.md`).
 
 The token can't read other apps, but it can deploy any image to `fencepost`, and a malicious image could read `OPENROUTER_API_KEY` from the machine. That's another reason for the credit limit.
 
@@ -130,19 +130,20 @@ Doppler `prd_ci` is the source of truth. The GitHub environment secret is a manu
 
 ### Day to day
 
-- **Which version is live:** `fly releases -a fencepost` lists them. `/api/health` shows the server is up, not which commit it runs. A clean `flyctl deploy` is the proof of the release.
+- **Which version is live:** `fly releases -a fencepost --image` lists them, and each image name carries its commit SHA. `/api/health` shows only that the server is up.
 - **Accepted downtime:** each deploy replaces the single machine, even on a docs-only merge. In-flight card streams drop and the in-memory rate limits reset.
 - **Cancelled runs:** when merges queue, GitHub cancels the older waiting run and the newest commit wins, so a cancelled run isn't a failure.
-- **Roll back:** revert the PR, and the merge deploys the old code. For something faster, find the earlier image with `fly releases -a fencepost --image`, then run `fly deploy --image <image> --ha=false`.
+- **Roll back:** revert the PR, and the merge deploys the old code. For something faster, find the earlier image with `fly releases -a fencepost --image` and run `fly deploy -a fencepost --image <image> --ha=false`. Still revert the PR, because the next merge redeploys whatever is on `main`.
 - **Run exactly one machine** until the rate limits move to Redis (see the "Rate-limit state" row above). `fly.toml` can't enforce this, and `--ha=false` doesn't shrink an app that already has two. The workflow's check catches that after the fact.
 - **Version bumps:** Dependabot covers the action pins. Bump the flyctl `version` in the workflow by hand.
 
 ### When something goes wrong
 
 - **A failed deploy never blocks merging, and nothing alerts beyond GitHub's failure email.** The red run on `main`'s Actions tab is the signal. The server stays on the older commit until a redeploy or the next merge.
-- **Redeploy:** `gh workflow run deploy-server.yml --ref main`.
+- **Redeploy:** `gh workflow run deploy-server.yml --ref main`. Don't use **Re-run** on anything but the latest run, because a re-run keeps its original commit and would roll the server back.
 - **The machine check failed.** The new image is already live on every machine. Run `fly scale count 1 -a fencepost`, then redeploy.
-- **Deploys fail with an auth error.** The token expires on **2027-10-31**, and nothing reminds anyone first. The owner rotates it: rerun the token command from step 3, rerun the last command from step 4, then redeploy to verify.
+- **The health check failed.** The deploy itself finished. Check `fly status -a fencepost` and `fly logs -a fencepost`, then redeploy.
+- **Deploys fail with an auth error.** The token expires on **2027-10-31**, and nothing reminds anyone first. The owner rotates it: rerun the token command from step 3, rerun the last command from step 4, then redeploy to verify. Revoke the old token with `fly tokens list -a fencepost` and `fly tokens revoke <id>`, and update the date here.
 
 ## Not done by this run: user-run steps
 
@@ -150,7 +151,7 @@ These were left undone on purpose. Most need your accounts, money or hardware, o
 
 1. **Keep checking card correctness. This is the most important step.** The model is chosen (see "Card model" above), but correctness rests on 50 hand-checked cards. Spot-check generated cards during real play, and rerun `npm run cards:eval -- --model <id> --batches 5` and read every card after changing the prompt or the model. The automated tests cover only the plumbing, validation and streaming, using a mock model and a local fake OpenRouter.
 2. **OpenRouter key and credit limit.** Set a hard credit limit on the key in the OpenRouter dashboard as the cost backstop.
-3. **Fly.io.** The app and its secrets are set up, but nothing is deployed. Set the credit limit from step 2 here, then merge the workflow (see "Deploying the server").
+3. **Fly.io.** Merges deploy the server (see "Deploying the server"). Set the credit limit from step 2 here before the first one.
 4. **A production native build against Fly.** Play a generated batch in a release build pointed at the deployed server.
 5. **iOS development build.** A Release simulator build compiled on EAS on 2026-10-31 (build `8cd5fd36`, Xcode 27.1) and launched on the iOS 26.3 simulator to the starter deck, with the fonts and styling intact. That proves the compile, the plugins that run at build time and the `expo-updates` config. Still untested: a device-signed build, and a debug development build.
    - `npx expo run:ios` needs **Xcode 26.4+** (SDK 58's requirement). With Xcode 26.2 it fails inside Expo's own native code, not app code:

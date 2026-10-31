@@ -34,12 +34,15 @@ jobs:
         with:
           version: 0.4.114
       # --ha=false keeps one machine, because the rate limiters are in memory (see NOTES.md).
-      - run: flyctl deploy --remote-only --ha=false
+      # The label puts the commit in the image name, which is how `fly releases --image` shows it.
+      - run: flyctl deploy --remote-only --ha=false --image-label "deployment-${GITHUB_SHA}"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       # --ha=false doesn't shrink an app that already has two machines, so catch that here. The
-      # count includes stopped machines. Health shows the server is up, not which commit it runs.
+      # count includes stopped machines.
       - name: Check for one machine and a healthy server
+        # Named so bash adds pipefail: a flyctl failure must not read as a machine count.
+        shell: bash
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |

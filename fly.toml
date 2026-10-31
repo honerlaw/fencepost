@@ -21,3 +21,8 @@ primary_region = "iad"
     method = "GET"
     path = "/api/health"
     timeout = "5s"
+
+# The default is 256 MB, and the server idles near 160 MB before any card batch streams.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

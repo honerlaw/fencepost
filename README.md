@@ -2,7 +2,7 @@
 
 A doomscroll feed of tap-to-answer logic puzzles for senior engineers, on a whiteboard (light) or chalkboard (dark). Five card types: spot the flaw, break it, trace it, pick the design, and order the steps. It ships with a 6-card starter deck. After that, a small stateless server writes cards live with an AI model and streams them to the app as NDJSON.
 
-> **Not production-ready yet.** Nothing is deployed and no release build has been tested. Generated cards use `anthropic/claude-sonnet-5.5`, chosen after a hand-checked eval of 50 cards found no wrong answers, but that sample is small, so keep spot-checking cards. Cards also take about 40 s to start arriving. See [NOTES.md](NOTES.md).
+> **Not production-ready yet.** The server deploys on merge to `main`, but no release build has been tested against it. Generated cards use `anthropic/claude-sonnet-5.5`, chosen after a hand-checked eval of 50 cards found no wrong answers, but that sample is small, so keep spot-checking cards. Cards also take about 40 s to start arriving. See [NOTES.md](NOTES.md).
 
 ## Run the app
 
@@ -46,7 +46,7 @@ OPENROUTER_BASE_URL=http://127.0.0.1:8790/api/v1 OPENROUTER_API_KEY=stub CARD_MO
 curl -N -X POST localhost:8080/api/cards -H 'content-type: application/json' -d '{"deviceId":"local-device-1"}'
 ```
 
-Docker (the same image Fly would run):
+Docker (the same image Fly runs):
 
 ```bash
 docker build -t fencepost .
