@@ -55,17 +55,17 @@ Costs are calculated from token counts and OpenRouter's list prices at the time.
 
 ### One-time setup
 
-Everything here goes through the EAS CLI except two steps it has no command for, marked below.
+Everything here goes through the EAS CLI except linking GitHub, which it has no command for (step 5).
 
 1. Check that you have a paid Apple Developer membership.
-2. Run `npx eas-cli@latest build --platform ios --profile production --auto-submit` and log in to Apple when asked. This creates the signing credentials and the App Store Connect app, builds the app, and uploads the first TestFlight build. It's interactive because of Apple's login and 2FA.
+2. Run `npm ci`, then `npx eas-cli@latest build --platform ios --profile production --auto-submit`, and log in to Apple when asked. This creates the signing credentials and the App Store Connect app, builds the app, and uploads the first TestFlight build. It's interactive because of Apple's login and 2FA. Without a fresh `npm ci`, the build can fail; see "When something goes wrong".
 3. Run `npx eas-cli@latest credentials --platform ios`, choose the `production` profile, then **App Store Connect: Manage your API Key** > **Set up your project to use an API Key for EAS Submit**. Workflows use this key to reach Apple without a login. Skip this if step 2 already set it up.
 4. Run `npx eas-cli@latest integrations:asc:connect`, then add the app's Apple ID to `eas.json` on a small PR:
    ```json
    "submit": { "production": { "ios": { "ascAppId": "<Apple ID>" } } }
    ```
 5. **No CLI command:** on expo.dev, connect your GitHub user under **User settings > Connections**, install the Expo GitHub App, and link `honerlaw/fencepost` under **Project settings > GitHub**.
-6. **No CLI command:** in App Store Connect, create an internal TestFlight group with automatic distribution, add yourself, and install the TestFlight app on your phone.
+6. Install the TestFlight app on your phone, signed in with an Apple ID that's an admin on the team. `eas submit` sets up the group: if the app has no TestFlight groups, it creates an internal one called `Team (Expo)` with access to all builds and adds the team's admins. To add anyone else, add them to that group in App Store Connect.
 7. Merge the `ascAppId` PR. `ascAppId` doesn't change the hash, so step 2's build still matches and this merge publishes an update. That's the first real test of the trigger, which nothing has exercised yet. The workflow's own build and upload path gets its first run at the next native change.
 8. On the first build, check that progress survives a restart (SQLite). Once the Fly server exists, check that a generated batch arrives, which proves the router `origin`.
 
@@ -82,8 +82,9 @@ Signing credentials and the App Store Connect API key live on EAS, not in Dopple
 ### When something goes wrong
 
 - **A failed deploy never blocks merging.** The workflow reports on expo.dev, and `ci-required` doesn't depend on it, so check the run after the first deploy and after any native change. It also doesn't wait for `main`'s own CI run: the gate is `ci-required` on the PR.
+- **A local build fails with "Runtime version calculated on local machine not equal to runtime version calculated during build".** The CLI hashes your local `node_modules`, and EAS hashes a fresh install, so a stale install fails the build in the "Configure expo-updates" phase. Run `npm ci`, then build again. To check first, run `npx eas-cli@latest fingerprint:compare --build-id <last good build id> --environment production --non-interactive`.
 - **The build worked but the upload failed.** This one is easy to miss: later merges find the build and publish updates, while TestFlight never gets the binary. Copy the build ID from the failed run and run `npx eas-cli@latest submit --platform ios --id <build id>` from a checkout that has `ascAppId`. Don't use `--latest`, which can pick a simulator build.
-- **The build expired.** TestFlight builds last 90 days, and JavaScript-only merges don't renew them. Run `npx eas-cli@latest build --platform ios --profile production --auto-submit`.
+- **The build expired.** TestFlight builds last 90 days, and JavaScript-only merges don't renew them. Run `npm ci`, then `npx eas-cli@latest build --platform ios --profile production --auto-submit`.
 
 ## Not done by this run: user-run steps
 
