@@ -12,7 +12,7 @@ The first version of the `codeql` job was in `ci-required` and looked like a gat
 GitHub's own way to block on code scanning results is a separate ruleset rule, which reads alert state rather than this run's output.
 
 ## Finding
-The job writes SARIF with `output: sarif-results`, then `.github/scripts/check-codeql.sh` fails on any result whose rule has a `security-severity` of 4.0 or more. Results with a non-empty `suppressions` array are skipped.
+The job writes SARIF with `output: sarif-results`, then `.github/scripts/check-codeql.sh` fails on any result whose rule has a `security-severity` of 4.0 or more. Results with a non-empty `suppressions` array are skipped. A real run keeps its rules under `tool.extensions`, not `tool.driver`.
 
 ## Implications
 - Any tool that only uploads results needs its own failing step. Check with a planted finding, not by reading the workflow.

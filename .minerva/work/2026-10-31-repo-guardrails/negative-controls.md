@@ -76,7 +76,18 @@ Added after the second review and verification:
 | lint hook | `any` cast in this repo, then a foreign repo with a fake eslint | caught | exit 2 here; exit 0 and the foreign eslint did not run |
 | jscpd partial paste | 12, 21, 40 and 120 lines of `game-store.ts` | **missed** | `Found 0 clones`, exit 0, also at `--mode weak` and `--min-tokens 30`. Cause not found. Recorded as a limit. |
 
-CodeQL's real run, and `dependency-review`, have no failing control locally. A green run does not prove they can fail, so both get a planted failure on the PR.
+Proven on PR #3, in one planted commit (46152fe) reverted by 8e38695, whose tree matches the commit before the plant:
+
+| Gate | Violation | Result | Evidence |
+| --- | --- | --- | --- |
+| CodeQL | reflected XSS route in `server.js`, past local lint | caught | run 41211886033: `js/reflected-xss: server.js:16`, exit 1 |
+| dependency-review | `lodash@4.17.20` | caught | same run: job failed and listed the lodash advisories |
+| knip | the same unused dependency | caught | same run: `Unused dependencies (1)` |
+| ci-required | those failures | caught | same run: job failed, run conclusion `failure` |
+
+The first run (41208753644, 9823e31) passed every blocking job. Its SARIF has 201 rules under `tool.extensions` and none under `tool.driver`.
+
+**Not proven:** whether a `codeql[...]` comment produces a suppressed SARIF result. That test needed a second planted commit, which was outside what the owner approved, so it did not run.
 
 The Claude Code hooks are covered by `scripts/guardrails/guardrails.test.ts` (block-bypass) and a pipe test of `lint-edited-file.mjs`: exit 0 on a clean file, exit 2 with the report on a dirty one.
 

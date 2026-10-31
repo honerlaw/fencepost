@@ -18,6 +18,7 @@ The guardrails are strict, and it is easy to read a green `ci-required` as proof
 - **`package.json` is not a guarded path.** CI calls tools directly for this reason, so gutting an npm script cannot weaken a gate.
 - **jscpd catches whole-file copies, not reliably partial ones.** The threshold is 0 and the measured duplication is 0.00%, yet pastes of 12 to 120 lines of \`src/store/game-store.ts\` gave \`Found 0 clones\`, also at \`--min-tokens 30\`. Other partial copies were found. The cause is unknown. Test files are ignored.
 - **Casts in tests are not budgeted.** \`as\` and \`!\` count only outside test files, because a bad one fails its test. Focused and skipped tests are counted everywhere.
+- **A CodeQL false positive has no proven way out.** `check-codeql.sh` skips results marked suppressed, but no run has shown that a `codeql[...]` comment produces that mark, and dismissing an alert does not change the gate.
 - **No mutation testing.** Stryker was not added, so coverage shows lines ran, not that tests would fail if the code broke.
 - **Dependabot npm PRs need a repo setting.** `.github/dependabot.yml` allows only security updates, and none open unless Dependabot security updates are on.
 

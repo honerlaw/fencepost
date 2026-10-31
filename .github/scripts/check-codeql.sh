@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # CodeQL's analyze step only uploads results, so a finding alone would leave the job green. This
-# fails on any security result rated medium or higher (a security-severity of 4.0 or more). A false
-# positive takes a `codeql[...]` comment with an entry in scripts/guardrails/suppressions.json:
-# dismissing an alert in the UI cannot help, because this reads the SARIF from this run.
+# fails on any security result rated medium or higher (a security-severity of 4.0 or more). Results
+# CodeQL marks as suppressed are skipped. Dismissing an alert in the UI cannot help, because this
+# reads the SARIF from this run.
 set -euo pipefail
 
 # Rules can sit under the driver or under an extension. No rules at all means the SARIF has changed
