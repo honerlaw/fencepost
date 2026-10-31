@@ -21,7 +21,7 @@ npx expo-doctor             # diagnose dependency and config issues
 npx expo install --fix      # fix incompatible package versions
 ```
 
-Run lint and typecheck before declaring any task done.
+Run `npm run guard` before declaring any task done. It runs what the `ci-required` check runs, apart from the scans that need CI.
 
 ## Navigation & Routing
 
@@ -43,6 +43,24 @@ All secrets live in Doppler (project `fencepost`, config `prd`). Never put a sec
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## Guardrails
+
+Every PR must pass the `ci-required` check before it can merge. It fails unless every blocking job in `.github/workflows/ci.yml` succeeds.
+
+- Fix what a gate reports. Never weaken a gate to get past it: no rule turned off, threshold lowered, path ignored, or suppression added to get a change through.
+- Guardrail files are listed in `.github/guardrail-paths.txt`. A PR that touches one needs the `guardrails-approved` label, and only a person adds that label.
+- Every `eslint-disable`, `@ts-expect-error` and similar comment must have a matching entry with a reason in `scripts/guardrails/suppressions.json`.
+- Coverage and type-coverage thresholds only go up.
+- Never skip the git hooks. Do not use `--no-verify` or set `LEFTHOOK=0`.
+- Do not rename `ci-required`, or add path filters or a job-level `if:` that skips it. Branch protection waits on that exact name, so a PR would hang forever on a check that never reports.
+
+If CI itself is broken and `main` needs a fix, the repo owner can lift admin enforcement, merge, and restore it:
+
+```sh
+gh api -X DELETE repos/honerlaw/fencepost/branches/main/protection/enforce_admins
+gh api -X POST repos/honerlaw/fencepost/branches/main/protection/enforce_admins
+```
 
 ## minerva
 
