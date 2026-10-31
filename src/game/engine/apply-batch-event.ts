@@ -2,6 +2,7 @@ import { normalizeGenerated } from '../incoming';
 import { fetchSucceeded } from '../fetch-policy';
 import { advance } from './advance';
 import { batchFailed } from './batch-failed';
+import { isSeenTitle } from './is-seen-title';
 import { isWaiting } from './is-waiting';
 import type { BatchEvent, Deps, GameState } from './types';
 
@@ -12,7 +13,8 @@ export function applyBatchEvent(state: GameState, ev: BatchEvent, deps: Deps): G
     }
     case 'card': {
       const card = normalizeGenerated(ev.card);
-      if (!card) return state;
+      // A dropped card isn't counted, so a batch of nothing but repeats fails on `done`.
+      if (!card || isSeenTitle(state, card.title)) return state;
       const next = {
         ...state,
         queue: [...state.queue, card],

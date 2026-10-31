@@ -26,7 +26,8 @@ test('generated cards play, the request carries the chosen topics, and stats add
   expect(requests).toHaveLength(0);
   await answerStarter(page, STARTER[0]!, true);
   await expect.poll(() => requests.length).toBe(1);
-  expect(requests[0]).toMatchObject({ domains: ['cache', 'jobs'], recent: ['Overlapping bookings'] });
+  // The answered card, then the starter cards still to come, so the model can't repeat them.
+  expect(requests[0]).toMatchObject({ domains: ['cache', 'jobs'], recent: STARTER.map((c) => c.title) });
   expect((requests[0] as { deviceId: string }).deviceId).toMatch(/^[0-9a-f-]{36}$/);
 
   await nextCard(page);
