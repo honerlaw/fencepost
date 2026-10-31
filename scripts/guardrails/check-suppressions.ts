@@ -11,7 +11,8 @@ const BudgetsSchema = z.array(
 export type Budget = z.infer<typeof BudgetsSchema>[number];
 
 const COMMENT_KINDS: [string, RegExp][] = [
-  ['eslint-disable', /eslint-(disable|enable)/],
+  ['eslint-disable', /eslint-(?:disable|enable)/],
+  ['eslint-config', /^[/*\s]*eslint\s+[\w@/-]+\s*:/],
   ['ts-ignore', /@ts-(ignore|expect-error|nocheck)/],
   ['coverage-ignore', /(istanbul|v8|c8) ignore/],
   ['prettier-ignore', /prettier-ignore/],
@@ -29,20 +30,39 @@ function isFocusOrSkip(callee: string): boolean {
   );
 }
 
-function commentHits(text: string): string[] {
+function scriptKind(file: string): ts.ScriptKind {
+  if (file.endsWith('.tsx')) return ts.ScriptKind.TSX;
+  return isAstScanned(file) ? ts.ScriptKind.TS : ts.ScriptKind.JSX;
+}
+
+const parse = (file: string, text: string) =>
+  ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, scriptKind(file));
+
+/** Walks real tokens, because a bare scanner loses its place at the first `${}` and misses what follows. */
+function commentHits(source: ts.SourceFile): string[] {
+  const text = source.getFullText();
+  const seen = new Set<number>();
   const hits: string[] = [];
-  const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.JSX, text);
-  for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan()) {
-    if (token !== ts.SyntaxKind.SingleLineCommentTrivia && token !== ts.SyntaxKind.MultiLineCommentTrivia) continue;
-    const comment = scanner.getTokenText();
-    for (const [kind, pattern] of COMMENT_KINDS) if (pattern.test(comment)) hits.push(kind);
-  }
+  const visit = (node: ts.Node): void => {
+    if (node.kind === ts.SyntaxKind.JsxText) return;
+    const ranges = [
+      ...(ts.getLeadingCommentRanges(text, node.getFullStart()) ?? []),
+      ...(ts.getTrailingCommentRanges(text, node.getEnd()) ?? []),
+    ];
+    for (const { pos, end } of ranges) {
+      if (seen.has(pos)) continue;
+      seen.add(pos);
+      const comment = text.slice(pos, end);
+      for (const [kind, pattern] of COMMENT_KINDS) if (pattern.test(comment)) hits.push(kind);
+    }
+    for (const child of node.getChildren(source)) visit(child);
+  };
+  visit(source);
   return hits;
 }
 
-function astHits(file: string, text: string): string[] {
+function astHits(source: ts.SourceFile): string[] {
   const hits: string[] = [];
-  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const visit = (node: ts.Node): void => {
     if (ts.isNonNullExpression(node)) hits.push('non-null');
     if (ts.isAsExpression(node) && node.type.getText(source) !== 'const') {
@@ -59,9 +79,10 @@ function astHits(file: string, text: string): string[] {
 
 /** The suppressions in one file, as `kind -> count`. Casts in tests are fine: a bad one fails the test. */
 export function scan(file: string, text: string): Map<string, number> {
-  const hits = commentHits(text);
+  const source = parse(file, text);
+  const hits = commentHits(source);
   if (isAstScanned(file)) {
-    const fromAst = astHits(file, text);
+    const fromAst = astHits(source);
     hits.push(...(isTest(file) ? fromAst.filter((kind) => kind === 'test-focus-or-skip') : fromAst));
   }
   const counts = new Map<string, number>();

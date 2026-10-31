@@ -1,4 +1,5 @@
 // `npm run guard`: every local check, run to the end so one failure doesn't hide the next.
+// `guard:security` (gitleaks, semgrep) is separate because it needs tools outside node_modules.
 import { spawnSync } from 'node:child_process';
 
 const CHECKS: [string, string][] = [
@@ -9,7 +10,7 @@ const CHECKS: [string, string][] = [
   ['dead code', 'knip'],
   ['architecture', 'depcruise src scripts e2e --config .dependency-cruiser.cjs'],
   ['duplication', 'jscpd'],
-  ['type coverage', 'type-coverage'],
+  ['type coverage', "type-coverage --strict --ignore-catch --at-least 99 --ignore-files '**/*.d.ts'"],
   ['suppressions', 'tsx scripts/guardrails/check-suppressions.ts'],
   ['pins', 'tsx scripts/guardrails/check-pins.ts'],
   [
@@ -17,6 +18,9 @@ const CHECKS: [string, string][] = [
     'lockfile-lint --path package-lock.json --type npm --allowed-hosts npm --validate-https --validate-integrity',
   ],
   ['tests + coverage', 'vitest run --coverage'],
+  ['web export', 'expo export --platform web'],
+  ['native export', 'expo export --platform ios --platform android --output-dir dist-native'],
+  ['bundle secrets', 'tsx scripts/guardrails/check-bundle-secrets.ts'],
 ];
 
 const failed: string[] = [];

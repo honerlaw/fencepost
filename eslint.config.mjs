@@ -32,6 +32,10 @@ const NO_PROCESS_ENV = {
   selector: "MemberExpression[object.name='process'][property.name='env']",
   message: 'Read env only in src/server/from-env/, which keeps secrets out of the client bundle.',
 };
+const NO_PROCESS_ALIAS = {
+  selector: "VariableDeclarator[init.name='process']",
+  message: NO_PROCESS_ENV.message,
+};
 const NO_CAST_JSON_PARSE = {
   selector: "TSAsExpression > CallExpression[callee.object.name='JSON'][callee.property.name='parse']",
   message: 'JSON.parse returns unknown data. Validate it with zod instead of casting it.',
@@ -45,7 +49,13 @@ const NO_RELATIVE_API_FETCH_TEMPLATE = {
   selector: String.raw`CallExpression[callee.name='fetch'] > TemplateLiteral.arguments:first-child > TemplateElement:first-child[value.raw=/^\//]`,
   message: NO_RELATIVE_API_FETCH.message,
 };
-const SHARED_SYNTAX_BANS = [NO_PROCESS_ENV, NO_CAST_JSON_PARSE, NO_RELATIVE_API_FETCH, NO_RELATIVE_API_FETCH_TEMPLATE];
+const SHARED_SYNTAX_BANS = [
+  NO_PROCESS_ENV,
+  NO_PROCESS_ALIAS,
+  NO_CAST_JSON_PARSE,
+  NO_RELATIVE_API_FETCH,
+  NO_RELATIVE_API_FETCH_TEMPLATE,
+];
 
 const FRAMEWORK_IMPORTS = {
   group: [
@@ -212,7 +222,11 @@ export default defineConfig([
   // workspace-chrome-flex (no two-pane layout: the app is one column, where `flex: 1` is correct).
   {
     plugins: { agentic },
-    rules: { 'agentic/no-credential-in-url': 'error', 'agentic/no-biome-ignore': 'error' },
+    rules: { 'agentic/no-credential-in-url': 'error' },
+  },
+  {
+    plugins: { agentic },
+    rules: { 'agentic/no-biome-ignore': 'error' },
   },
   {
     files: SRC,
@@ -267,7 +281,12 @@ export default defineConfig([
   },
   {
     files: ['src/server/from-env/**'],
-    rules: { 'no-restricted-syntax': ['error', ...SHARED_SYNTAX_BANS.filter((ban) => ban !== NO_PROCESS_ENV)] },
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...SHARED_SYNTAX_BANS.filter((ban) => ban !== NO_PROCESS_ENV && ban !== NO_PROCESS_ALIAS),
+      ],
+    },
   },
 
   // Only these may print.

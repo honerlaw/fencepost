@@ -84,6 +84,28 @@ describe('checkPins', () => {
   });
 });
 
+describe('scan parsing', () => {
+  it('finds comments after a template literal', () => {
+    const text = ['const a = `x$', '{y}z`;\n// @ts-expect-error nope\nconst d: string = 1;\n'].join('');
+    expect(kinds('a.ts', text)).toEqual({ 'ts-ignore': 1 });
+  });
+
+  it('finds comments inside JSX', () => {
+    expect(kinds('a.tsx', 'const a = <b>{/* eslint-disable-line */}</b>;')).toEqual({ 'eslint-disable': 1 });
+  });
+
+  it('finds inline rule config', () => {
+    expect(kinds('a.ts', '/* eslint no-console: off */\nconsole.log(1);')).toEqual({ 'eslint-config': 1 });
+  });
+
+  it('parses a generic arrow in a .ts file as TypeScript', () => {
+    expect(kinds('a.ts', 'const f = <T>(x: T) => x;\nconst a = b as Foo;\nconst c = d!;')).toEqual({
+      'as-cast': 1,
+      'non-null': 1,
+    });
+  });
+});
+
 describe('findLeaks', () => {
   it('finds the prompt and any mention of OpenRouter, in any case', () => {
     expect(findLeaks([{ name: 'a', text: 'x OpenRouter y' }])).toHaveLength(1);
@@ -95,6 +117,10 @@ describe('findLeaks', () => {
     expect(findLeaks([{ name: 'a', text: `var k="${['sk', 'or', 'v1', 'ab12'.repeat(8)].join('-')}"` }])).toHaveLength(
       1,
     );
+  });
+
+  it('finds a key with no version segment', () => {
+    expect(findLeaks([{ name: 'a', text: ['sk', 'or', 'Ab12'.repeat(8)].join('-') }])).toHaveLength(1);
   });
 
   it('passes clean text', () => {

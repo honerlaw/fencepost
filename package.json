@@ -93,17 +93,8 @@
     "format:check": "prettier --check .",
     "guard": "tsx scripts/guardrails/run-guard.ts",
     "guard:security": "gitleaks git --no-banner --redact --config .gitleaks.toml && uvx semgrep@1.183.0 scan --config .semgrep --error --metrics off --quiet",
-    "guard:bundle": "expo export --platform web && expo export --platform ios --platform android --output-dir dist-native && tsx scripts/guardrails/check-bundle-secrets.ts",
     "test:coverage": "vitest run --coverage",
     "prepare": "node -e \"if(process.env.CI||!require('fs').existsSync('.git'))process.exit(0);try{require('child_process').execSync('lefthook install',{stdio:'inherit'})}catch{console.warn('lefthook not installed: skipping git hooks')}\""
   },
-  "private": true,
-  "typeCoverage": {
-    "atLeast": 99,
-    "strict": true,
-    "ignoreCatch": true,
-    "ignoreFiles": [
-      "**/*.d.ts"
-    ]
-  }
+  "private": true
 }

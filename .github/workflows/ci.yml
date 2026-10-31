@@ -21,7 +21,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # One group per PR, so a new push replaces the old run. Every push to main gets its own group and finishes.
+  group: ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -62,7 +63,7 @@ jobs:
       - run: npx knip
       - run: npx depcruise src scripts e2e --config .dependency-cruiser.cjs
       - run: npx jscpd
-      - run: npx type-coverage --strict --ignore-catch --at-least 99
+      - run: npx type-coverage --strict --ignore-catch --at-least 99 --ignore-files '**/*.d.ts'
       - run: npx tsx scripts/guardrails/check-suppressions.ts
       - run: npx tsx scripts/guardrails/check-pins.ts
       - run: npx lockfile-lint --path package-lock.json --type npm --allowed-hosts npm --validate-https --validate-integrity
@@ -95,7 +96,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      - run: npm run guard:bundle
+      - run: npx expo export --platform web
+      - run: npx expo export --platform ios --platform android --output-dir dist-native
+      - run: npx tsx scripts/guardrails/check-bundle-secrets.ts
 
   e2e:
     name: End-to-end tests
@@ -111,7 +114,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run e2e
+      - run: npx expo export --platform web
+      - run: npx playwright test
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
@@ -176,6 +180,9 @@ jobs:
           languages: javascript-typescript
           queries: security-and-quality
       - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          output: sarif-results
+      - run: .github/scripts/check-codeql.sh sarif-results
 
   dependencies:
     name: New dependency review
@@ -228,15 +235,14 @@ jobs:
       - run: npm ci
       - run: .github/scripts/install-tool.sh osv-scanner
       - run: osv-scanner scan source --lockfile package-lock.json
-        continue-on-error: true
       - run: npm audit --audit-level=high
-        continue-on-error: true
+        if: ${{ !cancelled() }}
       - run: npx expo-doctor
-        continue-on-error: true
+        if: ${{ !cancelled() }}
       - run: npx expo install --check
-        continue-on-error: true
-      - run: pipx run semgrep==1.183.0 scan --config p/typescript --config p/nodejs --config p/react --config p/owasp-top-ten --metrics off --quiet
-        continue-on-error: true
+        if: ${{ !cancelled() }}
+      - run: pipx run semgrep==1.183.0 scan --config p/typescript --config p/nodejs --config p/react --config p/owasp-top-ten --metrics off --quiet --error
+        if: ${{ !cancelled() }}
 
   ci-required:
     name: ci-required

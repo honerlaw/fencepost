@@ -49,6 +49,20 @@ Each gate was given a deliberate violation, run, and required to fail. Fixtures 
 | guardrail-changes label | same diff, label present, must pass | caught | guardrail changes: 15 guarded files, label present |
 | build (expo export) | import of a missing module | caught | Unable to resolve |
 
+Added after review:
+
+| Gate | Violation | Result | Evidence |
+| --- | --- | --- | --- |
+| e2e (Playwright) | spec expecting text that is not on the page | caught | `1 failed` |
+| Docker build | `COPY` of a missing file | caught | `not found` |
+| check-codeql.sh | SARIF with a security-severity 8.8 result, then one with only a quality result | caught | exit 1 with the rule and location, then exit 0 |
+| check-suppressions | comment after a template literal; generic arrow in `.ts`; inline `eslint` config | caught | unit tests in `guardrails.test.ts` |
+| check-guardrail-changes | unknown base SHA | caught | `fatal: not a tree object`, exit 1 (it used to pass) |
+| semgrep | `child_process` without `node:`; `generateText(opts)` | caught | `no-child-process-in-app`, `stream-text-needs-limits` |
+| eslint env ban | `const { env } = process` | caught | `Read env only` |
+
+CodeQL's real run, and `dependency-review`, are proven on the PR.
+
 The Claude Code hooks are covered by `scripts/guardrails/guardrails.test.ts` (block-bypass) and a pipe test of `lint-edited-file.mjs`: exit 0 on a clean file, exit 2 with the report on a dirty one.
 
 ## Plugin rule applicability

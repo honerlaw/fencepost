@@ -21,7 +21,7 @@ npx expo-doctor             # diagnose dependency and config issues
 npx expo install --fix      # fix incompatible package versions
 ```
 
-Run `npm run guard` before declaring any task done. It runs what the `ci-required` check runs, apart from the scans that need CI.
+Run `npm run guard` before declaring any task done. It covers types, lint, formatting, dead code, architecture, duplication, type coverage, suppressions, pins, the lockfile and unit tests. It also runs the web and native exports and the bundle secret scan, so it takes a few minutes. `npm run guard:security` runs gitleaks and semgrep, and needs both tools installed. CI also runs e2e, Docker, CodeQL and the workflow and Dockerfile linters.
 
 ## Navigation & Routing
 
