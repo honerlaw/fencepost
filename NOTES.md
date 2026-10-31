@@ -55,18 +55,19 @@ Costs are calculated from token counts and OpenRouter's list prices at the time.
 
 ### One-time setup
 
-Nothing runs until step 4, so these can wait until you're ready.
+Everything here goes through the EAS CLI except two steps it has no command for, marked below.
 
 1. Check that you have a paid Apple Developer membership.
-2. Run `npx eas-cli@latest credentials --platform ios`, choose the `production` profile, and log in to Apple. Set up the distribution certificate and provisioning profile, then **App Store Connect: Manage your API Key** > **Set up your project to use an API Key for EAS Submit**.
-3. Create the app in [App Store Connect](https://appstoreconnect.apple.com/apps) with the bundle ID `com.derek.honerlaw.fencepost`. Copy its **Apple ID** from **App Information**, and open a PR that adds it to `eas.json`, but don't merge it yet:
+2. Run `npx eas-cli@latest build --platform ios --profile production --auto-submit` and log in to Apple when asked. This creates the signing credentials and the App Store Connect app, builds the app, and uploads the first TestFlight build. It's interactive because of Apple's login and 2FA.
+3. Run `npx eas-cli@latest credentials --platform ios`, choose the `production` profile, then **App Store Connect: Manage your API Key** > **Set up your project to use an API Key for EAS Submit**. Workflows use this key to reach Apple without a login. Skip this if step 2 already set it up.
+4. Run `npx eas-cli@latest integrations:asc:connect`, then add the app's Apple ID to `eas.json` on a small PR:
    ```json
    "submit": { "production": { "ios": { "ascAppId": "<Apple ID>" } } }
    ```
-4. Connect your GitHub user under **User settings > Connections** on expo.dev, install the Expo GitHub App, and link `honerlaw/fencepost` to the `@onerlawllc/fencepost` project: **Project settings > GitHub**.
-5. In App Store Connect, go to **TestFlight** and create an internal group with automatic distribution. Add yourself, and install the TestFlight app on your phone.
-6. Merge the `ascAppId` PR. That push is the first deploy, and the first real test of the trigger, which nothing has exercised yet. It takes a build plus Apple's processing, usually 30 to 45 minutes in total. Merge nothing else between steps 4 and 6, and that includes Dependabot PRs: without `ascAppId` the upload fails, and the build it leaves behind makes the next merge publish an update instead of uploading a binary.
-7. On that first build, check that progress survives a restart (SQLite). Once the Fly server exists, check that a generated batch arrives, which proves the router `origin`.
+5. **No CLI command:** on expo.dev, connect your GitHub user under **User settings > Connections**, install the Expo GitHub App, and link `honerlaw/fencepost` under **Project settings > GitHub**.
+6. **No CLI command:** in App Store Connect, create an internal TestFlight group with automatic distribution, add yourself, and install the TestFlight app on your phone.
+7. Merge the `ascAppId` PR. `ascAppId` doesn't change the hash, so step 2's build still matches and this merge publishes an update. That's the first real test of the trigger, which nothing has exercised yet. The workflow's own build and upload path gets its first run at the next native change.
+8. On the first build, check that progress survives a restart (SQLite). Once the Fly server exists, check that a generated batch arrives, which proves the router `origin`.
 
 Signing credentials and the App Store Connect API key live on EAS, not in Doppler, because EAS has to hold them to sign and upload. They're the one exception to "all secrets live in Doppler". None of them reach this repo or GitHub, and the workflow uses no token.
 

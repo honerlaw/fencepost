@@ -14,7 +14,7 @@ The deploy workflow runs on EAS, outside GitHub, so the guardrails on `main` see
 - **CI doesn't validate deploy config.** A broken workflow or `eas.json` passes `ci-required` and fails on expo.dev after merge.
 - **Deploys don't wait for `main`'s CI.** The gate is `ci-required` on the PR.
 - **`get-build` can't tell whether a build reached TestFlight.** If the upload fails, later merges take the update path and no binary appears. Only the red run on expo.dev shows it.
-- **A merge between linking the repo and adding `ascAppId` strands the first upload** in the same way.
+- **The EAS CLI can't link GitHub or create TestFlight groups.** EAS CLI 27.2.0 has no command for either, so those two setup steps need expo.dev and App Store Connect.
 - **JavaScript-only merges don't renew a TestFlight build,** which expires after 90 days.
 - **AGENTS.md doesn't reflect this yet.** It names `eas build --profile development`, which doesn't exist here, and says all secrets live in Doppler. It's a guarded path, so it needs the label.
 

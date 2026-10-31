@@ -41,7 +41,7 @@ What was built:
 6. Measured: `ascAppId` leaves the iOS fingerprint unchanged, as does `version`; `package.json` scripts, `.gitignore` and the `origin` change it.
 7. NOTES.md "Deploying to TestFlight" holds the one-time setup, day-to-day use and failure recovery. README and the NOTES build status were updated.
 
-**The trigger is unverified.** No success criterion covers the repo link or the `on: push` trigger, so the first post-setup merge is the end-to-end test. Expo's docs say only GitHub organization repos can link to Expo organizations, which review raised as a blocker, but the owner confirmed `onerlawllc` is an Expo organization and that any GitHub repo can be linked to it. No move is needed.
+**The trigger is unverified.** No success criterion covers the repo link or the `on: push` trigger, so the first post-setup merge is the first real test of it. Expo's docs say only GitHub organization repos can link to Expo organizations, which review raised as a blocker, but the owner confirmed `onerlawllc` is an Expo organization and that any GitHub repo can be linked to it. No move is needed.
 
 ### Scope
 
@@ -91,9 +91,9 @@ EAS Hosting (`deploy` job) was considered as a way to also get a server, and rej
 7. An EAS iOS simulator build of the branch finishes successfully, and the built app launches on a local simulator to the starter deck. If the local runtime (iOS 26.3) refuses the binary, inspect `minos` in the built binary and record why instead; the build result alone then stands.
 8. The effect of `ascAppId` on the iOS fingerprint has been measured and the runbook reflects the result.
 
-This unit delivers deploy-ready config and a verified native compile; the first real delivery is the merge of the `ascAppId` PR. `dependency-review` runs only in CI. Not verifiable by this unit, and stated in the final report: a device-signed build, a TestFlight upload, or an OTA delivery. These need the owner's Apple login and repo link first.
+This unit delivers deploy-ready config and a verified native compile; the first real delivery is the owner's first `eas build --auto-submit`. `dependency-review` runs only in CI. Not verifiable by this unit, and stated in the final report: a device-signed build, a TestFlight upload, or an OTA delivery. These need the owner's Apple login and repo link first.
 
 ## Open Questions
 
-- The owner supplies `ascAppId` in one small PR that doubles as the first deploy trigger.
+- The owner runs the first production build through the EAS CLI, because Apple's login is interactive. `ascAppId` then goes in one small PR, and that merge is the first real test of the trigger.
 </content>
