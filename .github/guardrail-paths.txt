@@ -16,6 +16,7 @@ Dockerfile
 eslint.config.mjs
 knip.json
 lefthook.yml
+osv-scanner.toml
 playwright.config.ts
 scripts/guardrails/
 scripts/tsconfig.json
