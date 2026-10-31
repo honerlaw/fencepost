@@ -3,7 +3,12 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-const FORBIDDEN = [/You write puzzle cards for Fencepost/i, /OPENROUTER_API_KEY/i, /openrouter/i];
+const FORBIDDEN = [
+  /You write puzzle cards for Fencepost/i,
+  /OPENROUTER_API_KEY/i,
+  /openrouter/i,
+  /sk-or-v\d+-[a-f0-9]{16}/i,
+];
 const ROOTS = ['dist/client', 'dist-native'];
 
 export function findLeaks(files: { name: string; text: string }[]): string[] {

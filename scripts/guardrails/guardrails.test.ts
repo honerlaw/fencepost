@@ -91,6 +91,12 @@ describe('findLeaks', () => {
     expect(findLeaks([{ name: 'a', text: 'OPENROUTER_API_KEY' }])).toHaveLength(2);
   });
 
+  it('finds a key by its shape alone', () => {
+    expect(findLeaks([{ name: 'a', text: `var k="${['sk', 'or', 'v1', 'ab12'.repeat(8)].join('-')}"` }])).toHaveLength(
+      1,
+    );
+  });
+
   it('passes clean text', () => {
     expect(findLeaks([{ name: 'a', text: 'hello' }])).toEqual([]);
   });
