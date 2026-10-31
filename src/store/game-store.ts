@@ -35,7 +35,11 @@ export interface BatchRequest {
 export type BatchOutcome = { ok: true } | { ok: false; code: FetchErrorCode };
 
 /** Streams one batch, calling onEvent per NDJSON event. Resolves when the stream ends. */
-export type FetchBatch = (req: BatchRequest, onEvent: (ev: BatchEvent) => void, signal: AbortSignal) => Promise<BatchOutcome>;
+export type FetchBatch = (
+  req: BatchRequest,
+  onEvent: (ev: BatchEvent) => void,
+  signal: AbortSignal,
+) => Promise<BatchOutcome>;
 
 export interface StoreDeps {
   storage: DebouncedStorage;
@@ -70,12 +74,17 @@ export interface GameStore {
 /** How many recent titles go to the server. */
 export const RECENT_SENT = 20;
 
+const beforeHydration = () => {
+  // Replaced as soon as the store exists; see createGameStore.
+};
+
 export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
   let controller: AbortController | null = null;
   let lastStart = -Infinity;
   let toastId = 0;
   // Hydration can finish synchronously inside createStore, before `store` is assigned.
-  let markHydrated = () => {};
+  let markHydrated = beforeHydration;
+  const onHydrated = () => markHydrated();
   const d = (): Deps => ({ now: deps.now(), rng: deps.rng });
 
   return createStore<GameStore>()(
@@ -83,7 +92,8 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
       (set, get) => {
         markHydrated = () => set({ hydrated: true });
         /** Replaces the game state and mirrors its progress for persistence. */
-        const commit = (game: GameState, extra: Partial<GameStore> = {}) => set({ game, progress: game.progress, ...extra });
+        const commit = (game: GameState, extra: Partial<GameStore> = {}) =>
+          set({ game, progress: game.progress, ...extra });
 
         /**
          * Starts a batch: the loading state shows now, and the request goes out once the gap since the
@@ -101,7 +111,11 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
           // Set by a `done` or `error` event: the batch's outcome is decided, whatever the stream does next.
           let ended = false;
           const { progress } = game;
-          const req: BatchRequest = { deviceId: progress.deviceId, domains: progress.domains, recent: progress.recent.slice(-RECENT_SENT) };
+          const req: BatchRequest = {
+            deviceId: progress.deviceId,
+            domains: progress.domains,
+            recent: progress.recent.slice(-RECENT_SENT),
+          };
           const fail = (code: FetchErrorCode) => {
             if (stale() || ended) return;
             ended = true;
@@ -122,19 +136,23 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
               own.abort();
             }, BATCH_DEADLINE_MS);
             deps
-              .fetchBatch(req, (ev) => {
-                if (stale() || ended) return;
-                const current = get().game;
-                if (!current) return;
-                if (ev.event === 'done' || ev.event === 'error') ended = true;
-                commit(applyBatchEvent(current, ev, d()));
-                // The player may have played through the batch already; fetch the next one now.
-                if (ev.event === 'done') maybeFetch();
-              }, signal)
+              .fetchBatch(
+                req,
+                (ev) => {
+                  if (stale() || ended) return;
+                  const current = get().game;
+                  if (!current) return;
+                  if (ev.event === 'done' || ev.event === 'error') ended = true;
+                  commit(applyBatchEvent(current, ev, d()));
+                  // The player may have played through the batch already; fetch the next one now.
+                  if (ev.event === 'done') maybeFetch();
+                },
+                signal,
+              )
               // A stream that closes without `done` was cut off.
               .then((outcome) => fail(outcome.ok ? 'network' : outcome.code))
-              .catch(() => fail('network'))
-              .finally(() => clearTimeout(deadline));
+              .finally(() => clearTimeout(deadline))
+              .catch(() => fail('network'));
           };
           if (delay > 0) setTimeout(start, delay);
           else start();
@@ -173,7 +191,7 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
                 if (slot?.kind === 'card' && slot.result) {
                   set({ toasts: slot.result.toasts.map((text) => ({ id: ++toastId, text })) });
                 }
-              }
+              },
             ),
           next: () => update((g) => (g.current.kind === 'card' && g.current.result ? advance(g, d()) : g)),
           skip: () => update((g) => skipCard(g, d())),
@@ -181,7 +199,8 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
             const before = get().game;
             update((g) => flagCard(g));
             const after = get().game;
-            if (before !== after && after?.current.kind === 'card') deps.reportFlag(after.progress.deviceId, after.current.card);
+            if (before !== after && after?.current.kind === 'card')
+              deps.reportFlag(after.progress.deviceId, after.current.card);
           },
           dealIn: () => update((g) => dealInSession(g, d())),
           retry: () => {
@@ -192,7 +211,7 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
           dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
           cancelFetch: () => {
             const game = get().game;
-            if (!controller || !game?.fetch.inFlight) return;
+            if (!controller || game?.fetch.inFlight !== true) return;
             controller.abort();
             controller = null;
             commit(batchCancelled(game, d()));
@@ -204,8 +223,8 @@ export function createGameStore(deps: StoreDeps): StoreApi<GameStore> {
         version: 1,
         storage: createJSONStorage(() => deps.storage),
         partialize: (s) => ({ progress: s.progress }),
-        onRehydrateStorage: () => () => markHydrated(),
-      }
-    )
+        onRehydrateStorage: () => onHydrated,
+      },
+    ),
   );
 }

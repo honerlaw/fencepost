@@ -104,9 +104,28 @@ describe('answering', () => {
   });
 
   it('grades flaw cards by line and order cards by the whole sequence', () => {
-    const flaw: FlawCard = { id: 'f', type: 'flaw', domain: 'cache', title: 'F', prompt: 'p', why: 'w', boss: false, code: ['a', 'b', 'c'], answer: 1 };
+    const flaw: FlawCard = {
+      id: 'f',
+      type: 'flaw',
+      domain: 'cache',
+      title: 'F',
+      prompt: 'p',
+      why: 'w',
+      boss: false,
+      code: ['a', 'b', 'c'],
+      answer: 1,
+    };
     expect(answer(playing([flaw]), 1, deps()).current).toMatchObject({ result: { correct: true } });
-    const order: Card = { id: 'o', type: 'order', domain: 'cache', title: 'O', prompt: 'p', why: 'w', boss: false, steps: ['x', 'y', 'z'] };
+    const order: Card = {
+      id: 'o',
+      type: 'order',
+      domain: 'cache',
+      title: 'O',
+      prompt: 'p',
+      why: 'w',
+      boss: false,
+      steps: ['x', 'y', 'z'],
+    };
     expect(answer(playing([order]), [0, 1, 2], deps()).current).toMatchObject({ result: { correct: true } });
     expect(answer(playing([order]), [0, 2, 1], deps()).current).toMatchObject({ result: { correct: false } });
   });
@@ -131,7 +150,10 @@ describe('answering', () => {
 describe('rematches', () => {
   it('serves the oldest missed card after 5 non-rematch cards', () => {
     const missedCard = modelCard({ title: 'Missed' });
-    let s = playing(Array.from({ length: 8 }, () => modelCard()), { missed: [missedCard] });
+    let s = playing(
+      Array.from({ length: 8 }, () => modelCard()),
+      { missed: [missedCard] },
+    );
     for (let i = 0; i < 5; i++) {
       expect(current(s).rematch).toBeFalsy();
       s = advance(right(s), deps());
@@ -169,7 +191,7 @@ describe('rematches', () => {
     const fresh = modelCard();
     const s = wrong(playing([fresh], { missed: old }));
     expect(s.progress.missed).toHaveLength(MAX_MISSED);
-    expect(s.progress.missed[0].id).toBe(old[1].id);
+    expect(s.progress.missed[0]!.id).toBe(old[1]!.id);
     expect(s.progress.missed.at(-1)!.id).toBe(fresh.id);
   });
 
@@ -179,7 +201,11 @@ describe('rematches', () => {
       const dealt = dealIn(s, deps(T0, seed));
       expect(current(dealt).double).toBeFalsy();
     }
-    expect(loadStarterDeck(seededRng(1)).filter((c) => c.double).map((c) => c.id)).toEqual(['starter-3']);
+    expect(
+      loadStarterDeck(seededRng(1))
+        .filter((c) => c.double === true)
+        .map((c) => c.id),
+    ).toEqual(['starter-3']);
   });
 
   it('never rolls 2x on the starter path, even with an RNG that always rolls', () => {
@@ -190,8 +216,15 @@ describe('rematches', () => {
       served.push(current(s));
       s = skip(s, always);
     }
-    expect(served.map((c) => c.id)).toEqual(['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5', 'starter-6']);
-    expect(served.filter((c) => c.double).map((c) => c.id)).toEqual(['starter-3']);
+    expect(served.map((c) => c.id)).toEqual([
+      'starter-1',
+      'starter-2',
+      'starter-3',
+      'starter-4',
+      'starter-5',
+      'starter-6',
+    ]);
+    expect(served.filter((c) => c.double === true).map((c) => c.id)).toEqual(['starter-3']);
   });
 });
 

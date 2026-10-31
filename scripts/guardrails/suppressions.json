@@ -1,0 +1,74 @@
+[
+  {
+    "file": "e2e/generated.spec.ts",
+    "kind": "eslint-disable",
+    "count": 1,
+    "reason": "Proving that no retry happens needs real elapsed time."
+  },
+  {
+    "file": "src/cards/domains/is-domain-id.ts",
+    "kind": "as-cast",
+    "count": 1,
+    "reason": "Widens the readonly id list so includes accepts any string."
+  },
+  {
+    "file": "src/cards/starter/load-starter-deck.ts",
+    "kind": "as-cast",
+    "count": 1,
+    "reason": "The JSON import types domain as string; the deck is hand-checked and normalized right after."
+  },
+  {
+    "file": "src/components/card/card-view.tsx",
+    "kind": "as-cast",
+    "count": 5,
+    "reason": "The answer shape follows the card type, which TypeScript cannot link here."
+  },
+  {
+    "file": "src/components/card/no-ligatures.web.ts",
+    "kind": "as-cast",
+    "count": 1,
+    "reason": "fontVariantLigatures is web-only and absent from React Native's TextStyle."
+  },
+  {
+    "file": "src/components/ui/tap.tsx",
+    "kind": "as-cast",
+    "count": 1,
+    "reason": "The press event differs by platform; every field read after the cast is optional."
+  },
+  {
+    "file": "src/lib/api-url.ts",
+    "kind": "as-cast",
+    "count": 1,
+    "reason": "React Native's globalThis has no location type, so the web origin is read structurally."
+  },
+  {
+    "file": "src/lib/cards-client/fetch-batch.ts",
+    "kind": "as-cast",
+    "count": 1,
+    "reason": "The line has already passed asBatchEvent."
+  },
+  {
+    "file": "src/lib/ndjson/as-batch-event.ts",
+    "kind": "as-cast",
+    "count": 2,
+    "reason": "Narrows an unknown parsed value just far enough to read and check its event field."
+  },
+  {
+    "file": "src/server/plan/make-plan.ts",
+    "kind": "as-cast",
+    "count": 1,
+    "reason": "Object.entries widens keys to string; the keys of TYPE_WEIGHTS are card types."
+  },
+  {
+    "file": "src/theme/colors.ts",
+    "kind": "as-cast",
+    "count": 1,
+    "reason": "Widens the light palette to the shared Palette shape."
+  },
+  {
+    "file": "tamagui.config.ts",
+    "kind": "eslint-disable",
+    "count": 1,
+    "reason": "Tamagui reads its config type from an empty augmented interface."
+  }
+]

@@ -1,5 +1,6 @@
 import { MockLanguageModelV4 } from 'ai/test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 
 import { createLiveCardSource } from './card-source';
 import { handlersFromEnv } from './from-env';
@@ -25,14 +26,21 @@ const modelCard = (title: string) => ({
 const FINISH = {
   type: 'finish',
   finishReason: { unified: 'stop', raw: 'stop' },
-  usage: { inputTokens: { total: 100, noCache: 100, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 50, text: 50, reasoning: 0 } },
+  usage: {
+    inputTokens: { total: 100, noCache: 100, cacheRead: 0, cacheWrite: 0 },
+    outputTokens: { total: 50, text: 50, reasoning: 0 },
+  },
 };
 
 /** A mock model whose stream we drive by hand. */
 function handModel() {
   let controller!: ReadableStreamDefaultController<unknown>;
-  const stream = new ReadableStream({ start: (c) => void (controller = c) });
-  const model = new MockLanguageModelV4({ doStream: async () => ({ stream: stream as never }) });
+  const stream = new ReadableStream({
+    start: (c) => {
+      controller = c;
+    },
+  });
+  const model = new MockLanguageModelV4({ doStream: () => Promise.resolve({ stream: stream as never }) });
   return {
     model,
     open: () => controller.enqueue({ type: 'text-start', id: 't' }),
@@ -50,25 +58,24 @@ function scriptedModel(elements: unknown[]) {
   const json = JSON.stringify({ elements });
   const parts = json.match(/[\s\S]{1,40}/g)!;
   return new MockLanguageModelV4({
-    doStream: async () => ({
-      stream: new ReadableStream({
-        start(c) {
-          c.enqueue({ type: 'text-start', id: 't' });
-          for (const delta of parts) c.enqueue({ type: 'text-delta', id: 't', delta });
-          c.enqueue({ type: 'text-end', id: 't' });
-          c.enqueue(FINISH);
-          c.close();
-        },
-      }) as never,
-    }),
+    doStream: () =>
+      Promise.resolve({
+        stream: new ReadableStream({
+          start(c) {
+            c.enqueue({ type: 'text-start', id: 't' });
+            for (const delta of parts) c.enqueue({ type: 'text-delta', id: 't', delta });
+            c.enqueue({ type: 'text-end', id: 't' });
+            c.enqueue(FINISH);
+            c.close();
+          },
+        }) as never,
+      }),
   });
 }
 
 const failingModel = () =>
   new MockLanguageModelV4({
-    doStream: async () => {
-      throw new Error('upstream 500');
-    },
+    doStream: () => Promise.reject(new Error('upstream 500')),
   });
 
 function setup(models: Record<string, MockLanguageModelV4>, order = Object.keys(models)) {
@@ -77,7 +84,7 @@ function setup(models: Record<string, MockLanguageModelV4>, order = Object.keys(
   const handlers = createHandlers({
     source: createLiveCardSource({
       models: order,
-      languageModel: (m) => models[m],
+      languageModel: (m) => models[m]!,
       maxOutputTokens: 4321,
       rng: () => 0.5,
       newId: () => `card-${++id}`,
@@ -96,8 +103,27 @@ function setup(models: Record<string, MockLanguageModelV4>, order = Object.keys(
   return { handlers, logs };
 }
 
-const cardsRequest = (body: unknown = { deviceId: DEVICE, domains: ['cache'] }, signal?: AbortSignal) =>
-  new Request('http://localhost/api/cards', { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json' }, signal });
+const CARDS_BODY = { deviceId: DEVICE, domains: ['cache'] };
+
+const cardsRequest = (body: unknown = CARDS_BODY, signal?: AbortSignal) =>
+  new Request('http://localhost/api/cards', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { 'content-type': 'application/json' },
+    ...(signal ? { signal } : {}),
+  });
+
+const requestWith = (headers: Record<string, string>) => new Request('http://x/', { headers });
+
+const flagRequest = (body: unknown) =>
+  new Request('http://localhost/api/flag', { method: 'POST', body: JSON.stringify(body) });
+
+const statusOf = async (pending: Promise<Response>) => {
+  const res = await pending;
+  return res.status;
+};
+
+const NdjsonLine = z.record(z.string(), z.unknown());
 
 /** Reads NDJSON lines from a response one at a time. */
 function lines(res: Response) {
@@ -110,7 +136,7 @@ function lines(res: Response) {
       if (nl !== -1) {
         const line = buffer.slice(0, nl);
         buffer = buffer.slice(nl + 1);
-        return JSON.parse(line);
+        return NdjsonLine.parse(JSON.parse(line));
       }
       const { done, value } = await reader.read();
       if (done) return null;
@@ -154,21 +180,45 @@ describe('/api/cards streaming', () => {
   });
 
   it('drops malformed elements without crashing; done.sent counts the survivors', async () => {
-    const elements = [modelCard('Good one'), { type: 'nope' }, { ...modelCard('Bad answer'), correct: 'Not an option' }, 'garbage', modelCard('Good two')];
+    const elements = [
+      modelCard('Good one'),
+      { type: 'nope' },
+      { ...modelCard('Bad answer'), correct: 'Not an option' },
+      'garbage',
+      modelCard('Good two'),
+    ];
     const { handlers, logs } = setup({ primary: scriptedModel(elements) });
     const events = await all(await handlers.cards(cardsRequest()));
-    expect(events.filter((e) => e.event === 'card').map((e) => (e.card as { title: string }).title)).toEqual(['Good one', 'Good two']);
+    expect(events.filter((e) => e['event'] === 'card').map((e) => (e['card'] as { title: string }).title)).toEqual([
+      'Good one',
+      'Good two',
+    ]);
     expect(events.at(-1)).toEqual({ event: 'done', sent: 2 });
     await vi.waitFor(() => expect(logs).toHaveLength(1));
     expect(logs[0]).toMatchObject({ sent: 2, dropped: 3 });
   });
 
   it('keeps plan slots aligned when an element is dropped (the boss stays on its slot)', async () => {
-    const source = createLiveCardSource({ models: ['m'], languageModel: () => scriptedModel([{ type: 'nope' }, modelCard('A'), modelCard('B')]), maxOutputTokens: 100, rng: () => 0.5, newId: () => 'id' });
+    const source = createLiveCardSource({
+      models: ['m'],
+      languageModel: () => scriptedModel([{ type: 'nope' }, modelCard('A'), modelCard('B')]),
+      maxOutputTokens: 100,
+      rng: () => 0.5,
+      newId: () => 'id',
+    });
     const cards: { title: string; boss: boolean }[] = [];
     await source.getBatch(
-      { domain: 'cache', plan: [{ type: 'model', boss: false }, { type: 'model', boss: false }, { type: 'model', boss: true }], prompt: 'p', signal: new AbortController().signal },
-      (c) => cards.push(c)
+      {
+        domain: 'cache',
+        plan: [
+          { type: 'model', boss: false },
+          { type: 'model', boss: false },
+          { type: 'model', boss: true },
+        ],
+        prompt: 'p',
+        signal: new AbortController().signal,
+      },
+      (c) => cards.push(c),
     );
     expect(cards.map((c) => [c.title, c.boss])).toEqual([
       ['A', false],
@@ -180,7 +230,7 @@ describe('/api/cards streaming', () => {
     const fallback = scriptedModel([modelCard('From fallback')]);
     const { handlers, logs } = setup({ primary: failingModel(), fallback });
     const events = await all(await handlers.cards(cardsRequest()));
-    expect(events.map((e) => e.event)).toEqual(['start', 'card', 'done']);
+    expect(events.map((e) => e['event'])).toEqual(['start', 'card', 'done']);
     expect(fallback.doStreamCalls).toHaveLength(1);
     await vi.waitFor(() => expect(logs[0]).toMatchObject({ model: 'fallback', outcome: 'ok' }));
   });
@@ -188,7 +238,10 @@ describe('/api/cards streaming', () => {
   it('ends with an error event when every model fails', async () => {
     const { handlers, logs } = setup({ primary: failingModel(), fallback: failingModel() });
     const events = await all(await handlers.cards(cardsRequest()));
-    expect(events).toEqual([{ event: 'start', domain: 'cache', count: 5 }, { event: 'error', code: 'upstream_error' }]);
+    expect(events).toEqual([
+      { event: 'start', domain: 'cache', count: 5 },
+      { event: 'error', code: 'upstream_error' },
+    ]);
     await vi.waitFor(() => expect(logs[0]).toMatchObject({ outcome: 'error', sent: 0 }));
   });
 
@@ -221,7 +274,7 @@ describe('/api/cards streaming', () => {
     await vi.advanceTimersByTimeAsync(BATCH_TIMEOUT_MS);
     const events = await done;
     expect(events.at(-1)).toEqual({ event: 'error', code: 'timeout' });
-    expect(m.model.doStreamCalls[0].abortSignal?.aborted).toBe(true);
+    expect(m.model.doStreamCalls[0]!.abortSignal?.aborted).toBe(true);
     await vi.waitFor(() => expect(logs[0]).toMatchObject({ outcome: 'timeout' }));
   });
 
@@ -235,7 +288,7 @@ describe('/api/cards streaming', () => {
     await vi.waitFor(() => expect(m.model.doStreamCalls).toHaveLength(1));
     client.abort();
     expect(await next()).toBeNull();
-    expect(m.model.doStreamCalls[0].abortSignal?.aborted).toBe(true);
+    expect(m.model.doStreamCalls[0]!.abortSignal?.aborted).toBe(true);
     await vi.waitFor(() => expect(logs[0]).toMatchObject({ outcome: 'client_abort' }));
   });
 
@@ -246,16 +299,15 @@ describe('/api/cards streaming', () => {
     client.abort();
     await handlers.cards(cardsRequest(undefined, client.signal));
     await vi.waitFor(() => expect(logs[0]).toMatchObject({ outcome: 'client_abort' }));
-    expect(m.model.doStreamCalls.every((c) => c.abortSignal?.aborted)).toBe(true);
+    expect(m.model.doStreamCalls.every((c) => c.abortSignal?.aborted === true)).toBe(true);
   });
 
   it('trusts Fly-Client-IP only on Fly, else uses the last X-Forwarded-For hop', () => {
-    const req = (headers: Record<string, string>) => new Request('http://x/', { headers });
-    const spoofed = req({ 'fly-client-ip': '9.9.9.9', 'x-forwarded-for': '1.1.1.1' });
+    const spoofed = requestWith({ 'fly-client-ip': '9.9.9.9', 'x-forwarded-for': '1.1.1.1' });
     expect(clientIp(spoofed, true)).toBe('9.9.9.9');
     expect(clientIp(spoofed, false)).toBe('1.1.1.1');
-    expect(clientIp(req({ 'x-forwarded-for': '6.6.6.6, 10.0.0.1, 203.0.113.7' }), false)).toBe('203.0.113.7');
-    expect(clientIp(req({}), true)).toBe('unknown');
+    expect(clientIp(requestWith({ 'x-forwarded-for': '6.6.6.6, 10.0.0.1, 203.0.113.7' }), false)).toBe('203.0.113.7');
+    expect(clientIp(requestWith({}), true)).toBe('unknown');
   });
 
   it('falls back to the second model when the first answers with nothing playable', async () => {
@@ -263,7 +315,7 @@ describe('/api/cards streaming', () => {
     const good = scriptedModel([modelCard('Saved by fallback')]);
     const { handlers, logs } = setup({ primary: junk, fallback: good });
     const events = await all(await handlers.cards(cardsRequest()));
-    expect(events.filter((e) => e.event === 'card')).toHaveLength(1);
+    expect(events.filter((e) => e['event'] === 'card')).toHaveLength(1);
     expect(events.at(-1)).toMatchObject({ event: 'done', sent: 1 });
     expect(logs[0]).toMatchObject({ model: 'fallback', sent: 1 });
   });
@@ -276,7 +328,9 @@ describe('/api/cards streaming', () => {
       },
     });
     const { handlers } = setup({ primary: scriptedModel([]) });
-    const res = await handlers.cards(new Request('http://localhost/api/cards', { method: 'POST', body: broken, duplex: 'half' } as RequestInit));
+    const res = await handlers.cards(
+      new Request('http://localhost/api/cards', { method: 'POST', body: broken, duplex: 'half' } as RequestInit),
+    );
     expect(res.status).toBe(400);
   });
 
@@ -284,26 +338,40 @@ describe('/api/cards streaming', () => {
     const model = scriptedModel([modelCard('Capped')]);
     const { handlers } = setup({ primary: model });
     await all(await handlers.cards(cardsRequest()));
-    expect(model.doStreamCalls[0].maxOutputTokens).toBe(4321);
+    expect(model.doStreamCalls[0]!.maxOutputTokens).toBe(4321);
   });
 
   it('logs one JSON batch line with a hashed device id and no secrets', async () => {
     const { handlers, logs } = setup({ primary: scriptedModel([modelCard('Logged')]) });
     await all(await handlers.cards(cardsRequest()));
     await vi.waitFor(() => expect(logs).toHaveLength(1));
-    const line = logs[0];
-    expect(line).toMatchObject({ event: 'batch', domain: 'cache', model: 'primary', sent: 1, dropped: 0, usage: { input: 100, output: 50 }, outcome: 'ok' });
-    expect(line.device).toMatch(/^[0-9a-f]{16}$/);
-    expect(typeof line.latencyMs).toBe('number');
+    const line = logs[0]!;
+    expect(line).toMatchObject({
+      event: 'batch',
+      domain: 'cache',
+      model: 'primary',
+      sent: 1,
+      dropped: 0,
+      usage: { input: 100, output: 50 },
+      outcome: 'ok',
+    });
+    expect(line['device']).toMatch(/^[0-9a-f]{16}$/);
+    expect(typeof line['latencyMs']).toBe('number');
     expect(JSON.stringify(line)).not.toContain(DEVICE);
   });
 
   it('never logs the API key, even when the upstream call fails', async () => {
     const printed: string[] = [];
-    const spy = vi.spyOn(console, 'log').mockImplementation((...args) => void printed.push(args.join(' ')));
+    const spy = vi.spyOn(console, 'log').mockImplementation((...args) => {
+      printed.push(args.join(' '));
+    });
     try {
       // Port 9 (discard) refuses the connection, so the provider call errors out.
-      const handlers = handlersFromEnv({ OPENROUTER_API_KEY: API_KEY, CARD_MODEL: 'test/model', OPENROUTER_BASE_URL: 'http://127.0.0.1:9/api/v1' });
+      const handlers = handlersFromEnv({
+        OPENROUTER_API_KEY: API_KEY,
+        CARD_MODEL: 'test/model',
+        OPENROUTER_BASE_URL: 'http://127.0.0.1:9/api/v1',
+      });
       const events = await all(await handlers.cards(cardsRequest()));
       expect(events.at(-1)).toEqual({ event: 'error', code: 'upstream_error' });
       await vi.waitFor(() => expect(printed.some((l) => l.includes('"event":"batch"'))).toBe(true));
@@ -329,9 +397,9 @@ describe('/api/cards request order', () => {
       now: Date.now,
       log: () => {},
     });
-    expect((await handlers.cards(cardsRequest({ deviceId: DEVICE, prompt: 'x' }))).status).toBe(400);
-    expect((await handlers.cards(cardsRequest({ deviceId: DEVICE, recent: ['x'.repeat(5000)] }))).status).toBe(413);
-    expect((await handlers.cards(cardsRequest())).status).toBe(503);
+    expect(await statusOf(handlers.cards(cardsRequest({ deviceId: DEVICE, prompt: 'x' })))).toBe(400);
+    expect(await statusOf(handlers.cards(cardsRequest({ deviceId: DEVICE, recent: ['x'.repeat(5000)] })))).toBe(413);
+    expect(await statusOf(handlers.cards(cardsRequest()))).toBe(503);
     const limited = await handlers.cards(cardsRequest());
     expect(limited.status).toBe(429);
     expect(limited.headers.get('retry-after')).toBe('20');
@@ -339,26 +407,27 @@ describe('/api/cards request order', () => {
 });
 
 describe('/api/flag', () => {
-  const flag = (body: unknown) => new Request('http://localhost/api/flag', { method: 'POST', body: JSON.stringify(body) });
   const valid = { deviceId: DEVICE, card: { id: 'c1', title: 'Overlapping bookings' }, reason: 'wrong' };
 
   it('logs a valid flag as one JSON line', async () => {
     const { handlers, logs } = setup({ primary: scriptedModel([]) });
-    const res = await handlers.flag(flag(valid));
+    const res = await handlers.flag(flagRequest(valid));
     expect(res.status).toBe(200);
-    expect(logs).toEqual([{ event: 'flag', device: expect.stringMatching(/^[0-9a-f]{16}$/), reason: 'wrong', card: valid.card }]);
+    expect(logs).toEqual([
+      { event: 'flag', device: expect.stringMatching(/^[0-9a-f]{16}$/) as string, reason: 'wrong', card: valid.card },
+    ]);
   });
 
   it('rejects unknown fields', async () => {
     const { handlers } = setup({ primary: scriptedModel([]) });
-    expect((await handlers.flag(flag({ ...valid, note: 'hi' }))).status).toBe(400);
+    expect(await statusOf(handlers.flag(flagRequest({ ...valid, note: 'hi' })))).toBe(400);
   });
 
   it('is rate limited', async () => {
     const { handlers } = setup({ primary: scriptedModel([]) });
-    expect((await handlers.flag(flag(valid))).status).toBe(200);
-    expect((await handlers.flag(flag(valid))).status).toBe(200);
-    const third = await handlers.flag(flag(valid));
+    expect(await statusOf(handlers.flag(flagRequest(valid)))).toBe(200);
+    expect(await statusOf(handlers.flag(flagRequest(valid)))).toBe(200);
+    const third = await handlers.flag(flagRequest(valid));
     expect(third.status).toBe(429);
     expect(third.headers.get('retry-after')).toBeTruthy();
   });
@@ -367,6 +436,7 @@ describe('/api/flag', () => {
 describe('/api/health', () => {
   it('answers ok', async () => {
     const { handlers } = setup({ primary: scriptedModel([]) });
-    expect(await (await handlers.health()).json()).toEqual({ ok: true });
+    const res = await handlers.health();
+    expect(await res.json()).toEqual({ ok: true });
   });
 });

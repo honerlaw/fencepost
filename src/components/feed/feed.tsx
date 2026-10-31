@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { GestureDetector, ScrollView, usePanGesture } from 'react-native-gesture-handler';
-import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { YStack } from 'tamagui';
 
@@ -9,6 +15,7 @@ import { CardView } from '@/components/card/card-view';
 import { VerdictPanel } from '@/components/card/verdict-panel';
 import type { Slot } from '@/game/engine';
 import { canSwipeAdvance } from '@/game/rules';
+import type { Progress } from '@/game/types';
 import { playHaptic } from '@/lib/haptics';
 import { gameStore, useGame } from '@/store';
 import { DotGrid } from './dot-grid';
@@ -26,7 +33,44 @@ function slotKey(slot: Slot): string {
   return slot.kind === 'card' ? `card:${slot.card.id}` : slot.kind;
 }
 
-export function Feed() {
+function SlotBody({
+  slot,
+  progress,
+  domain,
+  onAnswer,
+  onNext,
+}: Readonly<{
+  slot: Slot;
+  progress: Progress;
+  domain: string | null;
+  onAnswer: (picked: number | number[]) => void;
+  onNext: () => void;
+}>) {
+  const actions = gameStore.getState();
+  switch (slot.kind) {
+    case 'card': {
+      return (
+        <>
+          <CardView card={slot.card} result={slot.result} onAnswer={onAnswer} onSkip={actions.skip} />
+          {slot.result ? (
+            <VerdictPanel card={slot.card} result={slot.result} onNext={onNext} onFlag={actions.flagWrong} />
+          ) : null}
+        </>
+      );
+    }
+    case 'welcome': {
+      return <WelcomeCard progress={progress} onDealIn={actions.dealIn} />;
+    }
+    case 'loading': {
+      return <LoadingCard since={slot.since} domain={domain} />;
+    }
+    case 'error': {
+      return <ErrorCard code={slot.code} onRetry={actions.retry} />;
+    }
+  }
+}
+
+export function Feed(): React.ReactNode {
   const hydrated = useGame((s) => s.hydrated);
   const game = useGame((s) => s.game);
   const toasts = useGame((s) => s.toasts);
@@ -91,7 +135,8 @@ export function Feed() {
     onDeactivate: (e) => {
       const s = scroll.current;
       // Mid-scroll means momentum is still running or there is more card below.
-      if (e.translationY <= -SWIPE_DISTANCE && canSwipeAdvance({ answered, scrolling: s.momentum || !s.atEnd })) goNext();
+      if (e.translationY <= -SWIPE_DISTANCE && canSwipeAdvance({ answered, scrolling: s.momentum || !s.atEnd }))
+        goNext();
     },
   });
 
@@ -101,12 +146,15 @@ export function Feed() {
   };
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
-    Object.assign(scroll.current, { y: contentOffset.y, height: layoutMeasurement.height, content: contentSize.height });
+    Object.assign(scroll.current, {
+      y: contentOffset.y,
+      height: layoutMeasurement.height,
+      content: contentSize.height,
+    });
     updateAtEnd();
   };
 
   if (!game) return <YStack flex={1} bg="$board" />;
-  const slot = game.current;
 
   return (
     <YStack flex={1} bg="$board">
@@ -133,24 +181,21 @@ export function Feed() {
             onMomentumScrollEnd={() => (scroll.current.momentum = false)}
           >
             <Animated.View style={[{ width: '100%', maxWidth: 560, gap: 12 }, cardStyle]}>
-              {slot.kind === 'card' ? (
-                <>
-                  <CardView card={slot.card} result={slot.result} onAnswer={onAnswer} onSkip={actions.skip} />
-                  {slot.result ? <VerdictPanel card={slot.card} result={slot.result} onNext={goNext} onFlag={actions.flagWrong} /> : null}
-                </>
-              ) : slot.kind === 'welcome' ? (
-                <WelcomeCard progress={game.progress} onDealIn={actions.dealIn} />
-              ) : slot.kind === 'loading' ? (
-                <LoadingCard since={slot.since} domain={game.fetch.domain} />
-              ) : (
-                <ErrorCard code={slot.code} onRetry={actions.retry} />
-              )}
+              <SlotBody
+                slot={game.current}
+                progress={game.progress}
+                domain={game.fetch.domain}
+                onAnswer={onAnswer}
+                onNext={goNext}
+              />
             </Animated.View>
           </ScrollView>
         </GestureDetector>
       </SafeAreaView>
       <Toasts toasts={toasts} onDone={actions.dismissToast} />
-      {menuOpen ? <TopicsSheet progress={game.progress} onChange={actions.setDomains} onClose={() => setMenuOpen(false)} /> : null}
+      {menuOpen ? (
+        <TopicsSheet progress={game.progress} onChange={actions.setDomains} onClose={() => setMenuOpen(false)} />
+      ) : null}
     </YStack>
   );
 }

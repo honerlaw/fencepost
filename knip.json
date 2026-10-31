@@ -1,0 +1,10 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["scripts/cards-eval.ts", "scripts/guardrails/*.ts", ".claude/hooks/*.mjs", "tamagui.config.ts"],
+  "ignoreBinaries": ["doppler", "gitleaks", "uvx"],
+  "ignoreDependencies": ["expo-updates", "lefthook"],
+  "ignoreExportsUsedInFile": true,
+  "ignoreIssues": {
+    "tamagui.config.ts": ["duplicates"]
+  }
+}

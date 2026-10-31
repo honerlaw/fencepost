@@ -1,0 +1,25 @@
+# Fast feedback only. CI is the gate: see `ci-required` in .github/workflows/ci.yml.
+pre-commit:
+  parallel: true
+  jobs:
+    - name: format
+      glob: '*.{ts,tsx,js,mjs,cjs,mts,json,yml,yaml}'
+      run: npx prettier --check {staged_files}
+    - name: lint
+      glob: '*.{ts,tsx,js,mjs,cjs,mts}'
+      run: npx eslint --max-warnings 0 {staged_files}
+    - name: secrets
+      run: command -v gitleaks >/dev/null || exit 0; gitleaks git --staged --no-banner --redact
+
+commit-msg:
+  jobs:
+    - name: conventional commit
+      run: npx commitlint --edit {1}
+
+pre-push:
+  parallel: true
+  jobs:
+    - name: types
+      run: npx tsc --noEmit
+    - name: tests
+      run: npx vitest run

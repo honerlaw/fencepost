@@ -18,12 +18,12 @@ describe('plan maker', () => {
     // P(no boss in 5 slots) = 0.82^5 ≈ 0.371, so about 62.9% of batches have one.
     const rng = seededRng(11);
     let withBoss = 0;
-    const N = 20000;
+    const N = 20_000;
     for (let i = 0; i < N; i++) if (makePlan(5, rng).some((s) => s.boss)) withBoss++;
     expect(withBoss / N).toBeCloseTo(1 - 0.82 ** 5, 1);
     // A single slot is a boss 18% of the time.
     let first = 0;
-    for (let i = 0; i < N; i++) if (makePlan(1, rng)[0].boss) first++;
+    for (let i = 0; i < N; i++) if (makePlan(1, rng)[0]!.boss) first++;
     expect(first / N).toBeGreaterThan(0.165);
     expect(first / N).toBeLessThan(0.195);
   });
@@ -31,12 +31,12 @@ describe('plan maker', () => {
   it('weights card types flaw 30, break 25, trace 15, model 15, order 15', () => {
     const rng = seededRng(3);
     const counts: Record<string, number> = {};
-    const N = 40000;
+    const N = 40_000;
     for (let i = 0; i < N; i++) {
-      const [slot] = makePlan(1, rng);
+      const slot = makePlan(1, rng)[0]!;
       counts[slot.type] = (counts[slot.type] ?? 0) + 1;
     }
-    for (const [type, weight] of Object.entries(TYPE_WEIGHTS)) expect(counts[type] / N).toBeCloseTo(weight / 100, 1);
+    for (const [type, weight] of Object.entries(TYPE_WEIGHTS)) expect(counts[type]! / N).toBeCloseTo(weight / 100, 1);
   });
 });
 

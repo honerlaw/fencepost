@@ -12,10 +12,17 @@ function streamOf(chunks: string[]): ReadableStream<Uint8Array> {
   });
 }
 
+const failingHandler = () => {
+  throw new Error('handler bug');
+};
+
 describe('readNdjson', () => {
   it('emits each line as it completes, across chunk boundaries', async () => {
     const seen: unknown[] = [];
-    await readNdjson(streamOf(['{"event":"st', 'art","count":5}\n{"event":"pi', 'ng"}\n', '{"event":"done","sent":1}']), (v) => seen.push(v));
+    await readNdjson(
+      streamOf(['{"event":"st', 'art","count":5}\n{"event":"pi', 'ng"}\n', '{"event":"done","sent":1}']),
+      (v) => seen.push(v),
+    );
     expect(seen).toEqual([{ event: 'start', count: 5 }, { event: 'ping' }, { event: 'done', sent: 1 }]);
   });
 
@@ -26,10 +33,7 @@ describe('readNdjson', () => {
   });
 
   it('passes errors thrown by the handler through instead of treating them as bad lines', async () => {
-    const fail = () => {
-      throw new Error('handler bug');
-    };
-    await expect(readNdjson(streamOf(['{"event":"ping"}\n']), fail)).rejects.toThrow('handler bug');
+    await expect(readNdjson(streamOf(['{"event":"ping"}\n']), failingHandler)).rejects.toThrow('handler bug');
   });
 
   it('decodes multi-byte characters split across chunks', async () => {

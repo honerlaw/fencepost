@@ -24,7 +24,7 @@ test('generated cards play, the request carries the chosen topics, and stats add
 
   // Nothing is fetched until the first answer.
   expect(requests).toHaveLength(0);
-  await answerStarter(page, STARTER[0], true);
+  await answerStarter(page, STARTER[0]!, true);
   await expect.poll(() => requests.length).toBe(1);
   expect(requests[0]).toMatchObject({ domains: ['cache', 'jobs'], recent: ['Overlapping bookings'] });
   expect((requests[0] as { deviceId: string }).deviceId).toMatch(/^[0-9a-f-]{36}$/);
@@ -52,11 +52,15 @@ test('generated cards play, the request carries the chosen topics, and stats add
 test('a 503 shows the error card with Try again, and rematches stay playable', async ({ page }) => {
   // Batches start at least 20 s apart (MIN_FETCH_GAP_MS), so the retries below wait out that gap.
   test.setTimeout(90_000);
-  const requests = await stubApi(page, { status: 503, body: '{"error":"unavailable"}', headers: { 'content-type': 'application/json' } });
+  const requests = await stubApi(page, {
+    status: 503,
+    body: '{"error":"unavailable"}',
+    headers: { 'content-type': 'application/json' },
+  });
   await open(page);
-  await answerStarter(page, STARTER[0], false);
+  await answerStarter(page, STARTER[0]!, false);
   await nextCard(page);
-  await answerStarter(page, STARTER[1], false);
+  await answerStarter(page, STARTER[1]!, false);
   await nextCard(page);
   await skipStarters(page);
   // The missed cards come back while there is nothing new.
@@ -73,20 +77,25 @@ test('a 503 shows the error card with Try again, and rematches stay playable', a
   await page.getByRole('button', { name: 'Try again' }).click();
   // Try again shows the loading card at once; the request goes out when the gap has passed.
   await expect(page.getByTestId('loading')).toBeVisible();
-  expect(requests.length).toBe(before);
+  expect(requests).toHaveLength(before);
   await expect.poll(() => requests.length, { timeout: 25_000 }).toBe(before + 1);
   await expect(page.getByTestId('error')).toBeVisible();
 });
 
 test('a 429 is never retried automatically', async ({ page }) => {
-  const requests = await stubApi(page, { status: 429, body: '{"error":"rate_limited"}', headers: { 'content-type': 'application/json', 'retry-after': '20' } });
+  const requests = await stubApi(page, {
+    status: 429,
+    body: '{"error":"rate_limited"}',
+    headers: { 'content-type': 'application/json', 'retry-after': '20' },
+  });
   await open(page);
-  await answerStarter(page, STARTER[0], true);
+  await answerStarter(page, STARTER[0]!, true);
   await expect.poll(() => requests.length).toBe(1);
   for (const c of STARTER.slice(1, 4)) {
     await nextCard(page);
     await answerStarter(page, c, true);
   }
+  // eslint-disable-next-line playwright/no-wait-for-timeout, sonarjs/no-fixed-wait-in-tests -- proving no retry happens needs elapsed time: nothing on the page changes when a request does not fire.
   await page.waitForTimeout(500);
   expect(requests).toHaveLength(1);
 });
@@ -97,7 +106,7 @@ test.describe('full stack (no stubs)', () => {
 
   test('plays cards generated through the real /api/cards route', async ({ page }) => {
     await open(page);
-    await answerStarter(page, STARTER[0], true);
+    await answerStarter(page, STARTER[0]!, true);
     await nextCard(page);
     await skipStarters(page);
     // The stub streams scripts/stub-cards.json; the first is a flaw card about expiring holds.

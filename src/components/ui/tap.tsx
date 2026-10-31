@@ -4,14 +4,20 @@ import { YStack } from 'tamagui';
 type TapProps = Omit<ComponentProps<typeof YStack>, 'role' | 'aria-label' | 'onPress' | 'onPressIn'> & {
   /** Read by screen readers and used by tests to find the target. */
   label: string;
-  onPress?: () => void;
-  disabled?: boolean;
+  onPress?: (() => void) | undefined;
+  disabled?: boolean | undefined;
 };
 
 /** A press that travels further than this is a drag (a swipe or scroll), not a tap. */
 const SLOP = 10;
 
-type PointLike = { nativeEvent?: { pageX?: number; pageY?: number }; pageX?: number; pageY?: number; clientX?: number; clientY?: number };
+interface PointLike {
+  nativeEvent?: { pageX?: number; pageY?: number };
+  pageX?: number;
+  pageY?: number;
+  clientX?: number;
+  clientY?: number;
+}
 
 function pointOf(e: unknown): { x: number; y: number } | null {
   const ev = e as PointLike | undefined;
@@ -21,7 +27,8 @@ function pointOf(e: unknown): { x: number; y: number } | null {
 }
 
 /** A tappable surface that is always announced as a labelled button. */
-export function Tap({ label, onPress, disabled, children, ...rest }: TapProps) {
+export function Tap({ label, onPress, disabled, children, ...rest }: TapProps): React.ReactNode {
+  const off = disabled === true;
   const start = useRef<{ x: number; y: number } | null>(null);
   const handlePress = (e: unknown) => {
     const from = start.current;
@@ -34,12 +41,12 @@ export function Tap({ label, onPress, disabled, children, ...rest }: TapProps) {
     <YStack
       role="button"
       aria-label={label}
-      aria-disabled={disabled || undefined}
-      tabIndex={disabled ? -1 : 0}
-      cursor={disabled ? 'default' : 'pointer'}
+      aria-disabled={off || undefined}
+      tabIndex={off ? -1 : 0}
+      cursor={off ? 'default' : 'pointer'}
       onPressIn={(e: unknown) => (start.current = pointOf(e))}
-      onPress={disabled ? undefined : handlePress}
-      pressStyle={disabled ? undefined : { opacity: 0.7 }}
+      onPress={off ? undefined : handlePress}
+      {...(off ? {} : { pressStyle: { opacity: 0.7 } })}
       {...rest}
     >
       {children}

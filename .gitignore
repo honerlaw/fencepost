@@ -52,3 +52,8 @@ dist-native/
 test-results/
 playwright-report/
 .tamagui/
+
+# Guardrail reports
+coverage/
+reports/
+.stryker-tmp/

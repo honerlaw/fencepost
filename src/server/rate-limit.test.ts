@@ -29,22 +29,57 @@ describe('rate limiter', () => {
   it('checks the device and the IP', () => {
     const device = createRateLimiter({ burst: 5, refillMs: 1000 }, () => 0);
     const ip = createRateLimiter({ burst: 2, refillMs: 1000 }, () => 0);
-    expect(takeAll([[device, 'a'], [ip, '1.2.3.4']]).ok).toBe(true);
-    expect(takeAll([[device, 'b'], [ip, '1.2.3.4']]).ok).toBe(true);
+    expect(
+      takeAll([
+        [device, 'a'],
+        [ip, '1.2.3.4'],
+      ]).ok,
+    ).toBe(true);
+    expect(
+      takeAll([
+        [device, 'b'],
+        [ip, '1.2.3.4'],
+      ]).ok,
+    ).toBe(true);
     // A third device on the same IP is refused by the IP bucket.
-    expect(takeAll([[device, 'c'], [ip, '1.2.3.4']]).ok).toBe(false);
+    expect(
+      takeAll([
+        [device, 'c'],
+        [ip, '1.2.3.4'],
+      ]).ok,
+    ).toBe(false);
   });
 
   it('charges nothing when any limiter refuses', () => {
     const ip = createRateLimiter({ burst: 1, refillMs: 10_000 }, () => 0);
     const device = createRateLimiter({ burst: 1, refillMs: 20_000 }, () => 0);
-    expect(takeAll([[ip, '1.1.1.1'], [device, 'a']]).ok).toBe(true);
+    expect(
+      takeAll([
+        [ip, '1.1.1.1'],
+        [device, 'a'],
+      ]).ok,
+    ).toBe(true);
     // The IP refuses, so device b keeps its token and is not even stored.
-    expect(takeAll([[ip, '1.1.1.1'], [device, 'b']]).ok).toBe(false);
+    expect(
+      takeAll([
+        [ip, '1.1.1.1'],
+        [device, 'b'],
+      ]).ok,
+    ).toBe(false);
     expect(device.size()).toBe(1);
-    expect(takeAll([[ip, '2.2.2.2'], [device, 'b']]).ok).toBe(true);
+    expect(
+      takeAll([
+        [ip, '2.2.2.2'],
+        [device, 'b'],
+      ]).ok,
+    ).toBe(true);
     // And when the device refuses, the IP keeps its token.
-    expect(takeAll([[ip, '3.3.3.3'], [device, 'a']]).ok).toBe(false);
+    expect(
+      takeAll([
+        [ip, '3.3.3.3'],
+        [device, 'a'],
+      ]).ok,
+    ).toBe(false);
     expect(ip.check('3.3.3.3').ok).toBe(true);
   });
 

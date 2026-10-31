@@ -5,7 +5,7 @@ import { Tap } from '@/components/ui/tap';
 import type { AnswerResult } from '@/game/engine';
 import type { PlayedCard } from '@/game/types';
 
-function Tag({ label }: { label: string }) {
+function Tag({ label }: Readonly<{ label: string }>) {
   return (
     <YStack px="$2" py={2} rounded="$2" bg="$goldWash">
       <Text fontFamily="$mono" fontWeight="700" fontSize={12} color="$goldInk">
@@ -22,16 +22,37 @@ interface VerdictPanelProps {
   onFlag: () => void;
 }
 
-export function VerdictPanel({ card, result, onNext, onFlag }: VerdictPanelProps) {
+export function VerdictPanel({ card, result, onNext, onFlag }: Readonly<VerdictPanelProps>): React.ReactNode {
   const { correct, score } = result;
   return (
     <Animated.View entering={FadeInDown.duration(280)}>
-      <YStack testID="verdict" bg="$card" rounded="$5" borderWidth={1} borderColor={correct ? '$green' : '$red'} p="$4" gap="$3">
+      <YStack
+        testID="verdict"
+        bg="$card"
+        rounded="$5"
+        borderWidth={1}
+        borderColor={correct ? '$green' : '$red'}
+        p="$4"
+        gap="$3"
+      >
         <XStack items="center" justify="space-between" gap="$3">
-          <Text fontFamily="$marker" fontWeight="700" fontSize={30} lineHeight={38} color={correct ? '$green' : '$red'} style={{ transform: [{ rotate: '-2deg' }] }}>
+          <Text
+            fontFamily="$marker"
+            fontWeight="700"
+            fontSize={30}
+            lineHeight={38}
+            color={correct ? '$green' : '$red'}
+            style={{ transform: [{ rotate: '-2deg' }] }}
+          >
             {result.verdict}
           </Text>
-          <Text testID="verdict-points" fontFamily="$display" fontWeight="800" fontSize="$7" color={correct ? '$ink' : '$muted'}>
+          <Text
+            testID="verdict-points"
+            fontFamily="$display"
+            fontWeight="800"
+            fontSize="$7"
+            color={correct ? '$ink' : '$muted'}
+          >
             +{score.points}
           </Text>
         </XStack>

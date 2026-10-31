@@ -1,0 +1,266 @@
+# Runs on every PR. `ci-required` is the check branch protection requires: every blocking job must
+# succeed, and a cancelled or skipped job counts as a failure.
+#
+# Do not add paths filters or a skipping job-level `if:` here, and do not rename `ci-required`
+# without updating branch protection. Either one leaves PRs waiting forever on a check that will
+# never report. Break-glass steps are in AGENTS.md.
+#
+# Gates call their tools directly rather than through package.json scripts, because this file
+# needs the `guardrails-approved` label to change and package.json does not.
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  # One group per PR, so a new push replaces the old run. Every push to main gets its own group and finishes.
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  static:
+    name: Types, lint, format
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx tsc --noEmit --project scripts/tsconfig.json
+      - run: npx eslint . --max-warnings 0
+      - run: npx prettier --check .
+
+  quality:
+    name: Dead code, architecture, suppressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx knip
+      - run: npx depcruise src scripts e2e --config .dependency-cruiser.cjs
+      - run: npx jscpd
+      - run: npx type-coverage --strict --ignore-catch --at-least 99 --ignore-files '**/*.d.ts'
+      - run: npx tsx scripts/guardrails/check-suppressions.ts
+      - run: npx tsx scripts/guardrails/check-pins.ts
+      # Offline, this compares with the SDK map the lockfile pins, so the result depends only on the
+      # commit. The online form, which also moves with Expo's releases, is in the advisory job.
+      - run: npx expo install --check --json
+        env:
+          EXPO_OFFLINE: '1'
+      - run: npx lockfile-lint --path package-lock.json --type npm --allowed-hosts npm --validate-https --validate-integrity
+
+  test:
+    name: Unit tests and coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run --coverage
+
+  build:
+    name: Web and native export
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx expo export --platform web
+      - run: npx expo export --platform ios --platform android --output-dir dist-native
+      - run: npx tsx scripts/guardrails/check-bundle-secrets.ts
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx expo export --platform web
+      - run: npx playwright test
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: docker build --tag fencepost:ci .
+      - name: Answer the health check
+        run: |
+          docker run --detach --name fencepost --publish 8080:8080 fencepost:ci
+          curl --fail --silent --show-error --retry 20 --retry-delay 1 --retry-all-errors http://localhost:8080/api/health
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - run: .github/scripts/install-tool.sh gitleaks
+      - run: gitleaks git --no-banner --redact --config .gitleaks.toml
+
+  sast:
+    name: Semgrep, workflows, Dockerfile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: .github/scripts/install-tool.sh actionlint
+      - run: .github/scripts/install-tool.sh hadolint
+      - run: actionlint
+      - run: hadolint Dockerfile
+      - run: pipx run zizmor==1.31.1 --offline --min-severity medium .github/workflows
+      - run: pipx run semgrep==1.183.0 scan --config .semgrep --error --metrics off --quiet
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          output: sarif-results
+      - run: .github/scripts/check-codeql.sh sarif-results
+
+  dependencies:
+    name: New dependency review
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        if: github.event_name == 'pull_request'
+        with:
+          config-file: ./.github/dependency-review-config.yml
+
+  guardrails:
+    name: Guardrail changes need approval
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx tsx scripts/guardrails/check-guardrail-changes.ts
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+
+  # Advisory: these results change with the outside world, not with this commit, so a newly
+  # published advisory cannot freeze unrelated PRs. The job shows red, and nothing depends on it.
+  advisory:
+    name: Advisory scans (not required)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: .github/scripts/install-tool.sh osv-scanner
+      - run: osv-scanner scan source --lockfile package-lock.json
+      - run: npm audit --audit-level=high
+        if: ${{ !cancelled() }}
+      - run: npx expo-doctor
+        if: ${{ !cancelled() }}
+      - run: npx expo install --check
+        if: ${{ !cancelled() }}
+      - run: pipx run semgrep==1.183.0 scan --config p/typescript --config p/nodejs --config p/react --config p/owasp-top-ten --metrics off --quiet --error
+        if: ${{ !cancelled() }}
+
+  ci-required:
+    name: ci-required
+    if: always()
+    needs: [static, quality, test, build, e2e, docker, secrets, sast, codeql, dependencies, guardrails]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Every blocking job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for result in $RESULTS; do
+            [ "$result" = success ] || exit 1
+          done

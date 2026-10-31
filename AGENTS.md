@@ -21,7 +21,7 @@ npx expo-doctor             # diagnose dependency and config issues
 npx expo install --fix      # fix incompatible package versions
 ```
 
-Run lint and typecheck before declaring any task done.
+Run `npm run guard` before declaring any task done. It covers types, lint, formatting, dead code, architecture, duplication, type coverage, suppressions, pins, the lockfile, Expo package versions and unit tests. It also runs the web and native exports and the bundle secret scan, so it takes a few minutes. `npm run guard:security` runs gitleaks and semgrep, and needs both tools installed. CI also runs e2e, Docker, CodeQL and the workflow and Dockerfile linters.
 
 ## Navigation & Routing
 
@@ -43,6 +43,21 @@ All secrets live in Doppler (project `fencepost`, config `prd`). Never put a sec
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## Guardrails
+
+Every PR must pass the `ci-required` check before it can merge. It fails unless every blocking job in `.github/workflows/ci.yml` succeeds.
+
+- Fix what a gate reports. Never weaken a gate to get past it: no rule turned off, threshold lowered, path ignored, or suppression added to get a change through.
+- Guardrail files are listed in `.github/guardrail-paths.txt`. A PR that touches one needs the `guardrails-approved` label, and only a person adds that label.
+- Every `eslint-disable`, `@ts-expect-error` and similar comment must have a matching entry with a reason in `scripts/guardrails/suppressions.json`.
+- Coverage and type-coverage thresholds only go up.
+- Never skip the git hooks. Do not use `--no-verify` or set `LEFTHOOK=0`.
+- Do not rename `ci-required`, or add path filters or a job-level `if:` that skips it. The `main` ruleset waits on that exact name, so a PR would hang forever on a check that never reports.
+
+If CI itself is broken and `main` needs a fix, the repo owner sets the `main` ruleset to Disabled, merges the fix, and sets it back to Active: **Settings > Rules > Rulesets > main > Enforcement status**. Nobody is on its bypass list, so this is the only way around the check, and it shows up in the repository's rule insights.
+
+`gh ruleset check main` shows which rules apply to `main`.
 
 ## minerva
 

@@ -6,7 +6,12 @@ import { LIMITS, normalize } from './normalize';
 import { loadStarterDeck } from './starter';
 
 let n = 0;
-const opts = (seed = 1) => ({ domain: 'payments' as const, boss: false, rng: seededRng(seed), newId: () => `id-${++n}` });
+const opts = (seed = 1) => ({
+  domain: 'payments' as const,
+  boss: false,
+  rng: seededRng(seed),
+  newId: () => `id-${++n}`,
+});
 
 const raw = (over: Record<string, unknown>) => ({
   type: 'flaw',
@@ -50,18 +55,21 @@ describe('normalize', () => {
   });
 
   it('converts tabs to two spaces, strips trailing spaces, keeps indentation', () => {
-    const card = normalize(flaw({ code: ['def f(x):   ', '\tif x > 1:', '\t\treturn x', '\treturn 0'] }), opts()) as FlawCard;
+    const card = normalize(
+      flaw({ code: ['def f(x):   ', '\tif x > 1:', '\t\treturn x', '\treturn 0'] }),
+      opts(),
+    ) as FlawCard;
     expect(card.code).toEqual(['def f(x):', '  if x > 1:', '    return x', '  return 0']);
   });
 
   it('needs 2 to 16 non-blank code lines', () => {
-    expect(normalize(flaw({ code: ['if x > 1:', '   '], bad_line: 'if x > 1:' }), opts())).toBeNull();
+    expect(normalize(flaw({ code: ['if x > 1:', ' '.repeat(3)], bad_line: 'if x > 1:' }), opts())).toBeNull();
     const long = Array.from({ length: 17 }, (_, i) => `x${i} = ${i}`);
     expect(normalize(flaw({ code: long, bad_line: 'x3 = 3' }), opts())).toBeNull();
   });
 
   it('drops cards missing title, prompt or why', () => {
-    expect(normalize(model({ title: '   ' }), opts())).toBeNull();
+    expect(normalize(model({ title: ' '.repeat(3) }), opts())).toBeNull();
     expect(normalize(model({ prompt: '' }), opts())).toBeNull();
     expect(normalize(model({ why: '\n' }), opts())).toBeNull();
   });
@@ -100,9 +108,15 @@ describe('normalize', () => {
 
   it('converts break and trace cards, keeping a trace input', () => {
     const code = ['def f(n):', '  return n // 2'];
-    const br = normalize(raw({ type: 'break', code, options: ['a', 'b', 'c', 'd'], correct: 'c' }), opts()) as BreakCard;
+    const br = normalize(
+      raw({ type: 'break', code, options: ['a', 'b', 'c', 'd'], correct: 'c' }),
+      opts(),
+    ) as BreakCard;
     expect(br.options[br.answer]).toBe('c');
-    const tr = normalize(raw({ type: 'trace', code, input: 'n = 5', options: ['1', '2', '3'], correct: '2' }), opts()) as TraceCard;
+    const tr = normalize(
+      raw({ type: 'trace', code, input: 'n = 5', options: ['1', '2', '3'], correct: '2' }),
+      opts(),
+    ) as TraceCard;
     expect(tr.input).toBe('n = 5');
     expect(tr.options[tr.answer]).toBe('2');
     expect(normalize(raw({ type: 'break', code: null, options: ['a', 'b', 'c'], correct: 'a' }), opts())).toBeNull();
@@ -132,8 +146,8 @@ describe('starter deck', () => {
     expect(a).toHaveLength(6);
     expect(a.map((c) => c.id)).toEqual(['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5', 'starter-6']);
     expect(b.map((c) => c.id)).toEqual(a.map((c) => c.id));
-    expect(a.every((c) => c.starter)).toBe(true);
-    expect(a.filter((c) => c.double).map((c) => c.id)).toEqual(['starter-3']);
+    expect(a.every((c) => c.starter === true)).toBe(true);
+    expect(a.filter((c) => c.double === true).map((c) => c.id)).toEqual(['starter-3']);
     expect(a.map((c) => c.type)).toEqual(['flaw', 'model', 'break', 'trace', 'order', 'flaw']);
   });
 

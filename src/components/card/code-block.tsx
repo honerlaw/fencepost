@@ -20,17 +20,28 @@ interface CodeBlockProps {
   reveal?: CodeReveal | null;
 }
 
+const LINE_TINT = { idle: undefined, flaw: undefined, right: '$greenWash', wrong: '$redWash' } as const;
+
 function splitIndent(line: string): [string, string] {
   const body = line.trimStart();
   return [line.slice(0, line.length - body.length), body];
 }
 
-function CodeLine({ index, line, state, onPick }: { index: number; line: string; state: 'idle' | 'right' | 'wrong' | 'flaw'; onPick?: () => void }) {
+function CodeLine({
+  index,
+  line,
+  state,
+  onPick,
+}: Readonly<{
+  index: number;
+  line: string;
+  state: keyof typeof LINE_TINT;
+  onPick: (() => void) | undefined;
+}>) {
   const [box, setBox] = useState<Box | null>(null);
   const [indent, body] = splitIndent(line);
-  const tint = state === 'right' ? '$greenWash' : state === 'wrong' ? '$redWash' : undefined;
   const content = (
-    <XStack items="center" minH={onPick || state !== 'idle' ? 36 : 22} px="$2" bg={tint} rounded="$2">
+    <XStack items="center" minH={onPick || state !== 'idle' ? 36 : 22} px="$2" bg={LINE_TINT[state]} rounded="$2">
       <Text fontFamily="$mono" fontSize={12.5} color="$muted" width={22} text="right" mr="$3" select="none">
         {index + 1}
       </Text>
@@ -63,8 +74,8 @@ function CodeLine({ index, line, state, onPick }: { index: number; line: string;
   );
 }
 
-export function CodeBlock({ code, onPickLine, reveal }: CodeBlockProps) {
-  const stateFor = (i: number): 'idle' | 'right' | 'wrong' | 'flaw' => {
+export function CodeBlock({ code, onPickLine, reveal }: Readonly<CodeBlockProps>): React.ReactNode {
+  const stateFor = (i: number): keyof typeof LINE_TINT => {
     if (!reveal) return 'idle';
     if (i === reveal.answer) return reveal.picked === i ? 'right' : 'flaw';
     if (i === reveal.picked) return 'wrong';
@@ -72,10 +83,20 @@ export function CodeBlock({ code, onPickLine, reveal }: CodeBlockProps) {
   };
   return (
     <YStack bg="$wash" rounded="$3" borderWidth={1} borderColor="$rule" overflow="hidden">
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 12, paddingRight: 24 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingVertical: 12, paddingRight: 24 }}
+      >
         <YStack gap={onPickLine || reveal ? 2 : 0}>
           {code.map((line, i) => (
-            <CodeLine key={i} index={i} line={line} state={stateFor(i)} onPick={onPickLine && !reveal ? () => onPickLine(i) : undefined} />
+            <CodeLine
+              key={i}
+              index={i}
+              line={line}
+              state={stateFor(i)}
+              onPick={onPickLine && !reveal ? () => onPickLine(i) : undefined}
+            />
           ))}
         </YStack>
       </ScrollView>

@@ -8,7 +8,7 @@
 const SYMBOL_PAIR = /([<>=!&|+\-*/:.~^%#?@$\\])(?=[<>=!&|+\-*/:.~^%#?@$\\])/g;
 
 export function codeText(line: string): string {
-  return line.replace(SYMBOL_PAIR, '$1⁠');
+  return line.replaceAll(SYMBOL_PAIR, '$1⁠');
 }
 
 export const noLigatures = {};
