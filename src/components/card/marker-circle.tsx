@@ -87,7 +87,7 @@ export function MarkerCircle({ box }: { box: Box }) {
     >
       <AnimatedPath
         d={loopPath(rx, ry)}
-        stroke={theme.red?.val as string}
+        stroke={theme.red?.val}
         strokeWidth={STROKE}
         strokeLinecap="round"
         fill="none"

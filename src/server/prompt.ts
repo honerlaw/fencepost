@@ -37,9 +37,9 @@ export function cleanRecent(recent: readonly string[]): string[] {
       // Titles sit inside "…" in the prompt, so a double quote can't close the quoting early.
       .map((t) =>
         t
-          .replace(/[\r\n]+/g, ' ')
-          .replace(/"/g, "'")
-          .replace(/\s+/g, ' ')
+          .replaceAll(/[\r\n]+/g, ' ')
+          .replaceAll('"', "'")
+          .replaceAll(/\s+/g, ' ')
           .trim()
           .slice(0, RECENT_CHARS)
           .trim(),

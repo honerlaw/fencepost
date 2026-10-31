@@ -38,12 +38,11 @@ const NO_CAST_JSON_PARSE = {
 };
 // .minerva/knowledge/2026-10-29-bug-expo-fetch-ignores-relative-urls-on-native
 const NO_RELATIVE_API_FETCH = {
-  selector: "CallExpression[callee.name='fetch'] > Literal.arguments:first-child[value=/^\\//]",
+  selector: String.raw`CallExpression[callee.name='fetch'] > Literal.arguments:first-child[value=/^\//]`,
   message: 'expo/fetch ignores relative URLs on native. Wrap the path in apiUrl().',
 };
 const NO_RELATIVE_API_FETCH_TEMPLATE = {
-  selector:
-    "CallExpression[callee.name='fetch'] > TemplateLiteral.arguments:first-child > TemplateElement:first-child[value.raw=/^\\//]",
+  selector: String.raw`CallExpression[callee.name='fetch'] > TemplateLiteral.arguments:first-child > TemplateElement:first-child[value.raw=/^\//]`,
   message: NO_RELATIVE_API_FETCH.message,
 };
 const SHARED_SYNTAX_BANS = [NO_PROCESS_ENV, NO_CAST_JSON_PARSE, NO_RELATIVE_API_FETCH, NO_RELATIVE_API_FETCH_TEMPLATE];
@@ -116,7 +115,8 @@ export default defineConfig([
   // General correctness.
   {
     rules: {
-      eqeqeq: ['error', 'always'],
+      // `== null` is the one sound loose comparison: it means null or undefined and nothing else.
+      eqeqeq: ['error', 'always', { null: 'ignore' }],
       'no-console': 'error',
       'no-eval': 'error',
       'no-implied-eval': 'error',

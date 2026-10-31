@@ -8,7 +8,7 @@ export const STARTER: StarterCard[] = deck;
 export const RIGHT_WORDS = ['Nice catch.', 'Clean.', 'LGTM.', 'Ship it.', 'Exactly.', 'Sharp.', 'Boss down.'];
 export const WRONG_WORDS = ['Not quite.', 'Bug escaped.', 'Rolled back.', 'Close, but no.'];
 
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escape = (s: string) => s.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
 /** Stubs /api/* so starter-deck tests never touch the (unconfigured) server routes. */
 export async function stubApi(

@@ -1,6 +1,6 @@
 // Production entry: serves the web export and the API routes from `npx expo export --platform web`.
 // No compression middleware: it would buffer the NDJSON stream from /api/cards.
-const path = require('path');
+const path = require('node:path');
 const express = require('express');
 const { createRequestHandler } = require('expo-server/adapter/express');
 

@@ -29,7 +29,7 @@ export interface HandlerDeps {
 }
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
+  Response.json(body, { status, headers: { 'content-type': 'application/json', ...headers } });
 
 function limited(result: LimitResult & { ok: false }) {
   return json({ error: 'rate_limited' }, 429, { 'retry-after': String(result.retryAfterSec) });

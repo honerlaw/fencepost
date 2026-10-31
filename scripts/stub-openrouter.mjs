@@ -11,7 +11,7 @@ import { createServer } from 'node:http';
 const port = Number(process.env.STUB_PORT ?? 8790);
 const firstDelayMs = Number(process.env.STUB_FIRST_DELAY_MS ?? 11_000);
 const chunkDelayMs = Number(process.env.STUB_CHUNK_DELAY_MS ?? 30);
-const cards = JSON.parse(readFileSync(new URL('./stub-cards.json', import.meta.url), 'utf8'));
+const cards = JSON.parse(readFileSync(new URL('stub-cards.json', import.meta.url), 'utf8'));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

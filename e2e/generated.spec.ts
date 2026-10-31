@@ -77,7 +77,7 @@ test('a 503 shows the error card with Try again, and rematches stay playable', a
   await page.getByRole('button', { name: 'Try again' }).click();
   // Try again shows the loading card at once; the request goes out when the gap has passed.
   await expect(page.getByTestId('loading')).toBeVisible();
-  expect(requests.length).toBe(before);
+  expect(requests).toHaveLength(before);
   await expect.poll(() => requests.length, { timeout: 25_000 }).toBe(before + 1);
   await expect(page.getByTestId('error')).toBeVisible();
 });

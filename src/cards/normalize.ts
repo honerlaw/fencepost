@@ -17,7 +17,7 @@ export interface NormalizeOptions {
 
 /** Collapses runs of whitespace and trims. */
 export function collapse(text: string): string {
-  return text.replace(/\s+/g, ' ').trim();
+  return text.replaceAll(/\s+/g, ' ').trim();
 }
 
 function truncate(text: string, max: number): string {
@@ -35,7 +35,7 @@ function cleanCode(code: string[] | null): string[] | null {
   if (!code) return null;
   const lines = code
     .flatMap((line) => String(line).split('\n'))
-    .map((line) => line.replace(/\t/g, '  ').replace(/\s+$/, ''))
+    .map((line) => line.replaceAll('\t', '  ').replace(/\s+$/, ''))
     .filter((line) => line.trim() !== '');
   if (lines.length < 2 || lines.length > MAX_CODE_LINES) return null;
   return lines;

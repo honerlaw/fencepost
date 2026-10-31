@@ -9,6 +9,6 @@ describe('apiUrl', () => {
   });
 
   it('leaves the path relative when there is no origin', () => {
-    expect(apiUrl('/api/cards', undefined)).toBe('/api/cards');
+    expect(apiUrl('/api/cards')).toBe('/api/cards');
   });
 });

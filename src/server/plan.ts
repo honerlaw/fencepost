@@ -35,7 +35,7 @@ function weightedType(rng: Rng): CardType {
     roll -= w;
     if (roll < 0) return type;
   }
-  return entries[entries.length - 1][0];
+  return entries.at(-1)[0];
 }
 
 /** `n` slots with weighted types; each slot has an 18% boss chance, at most one boss per batch. */

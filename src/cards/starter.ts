@@ -14,7 +14,7 @@ export function starterId(index: number): string {
  */
 export function loadStarterDeck(rng: Rng): PlayedCard[] {
   return starterDeck.map((entry, index) => {
-    const { domain, double, ...raw } = entry as typeof entry & { double?: boolean };
+    const { domain, double, ...raw } = entry;
     const card = normalize(raw, {
       domain: domain as DomainId,
       boss: false,

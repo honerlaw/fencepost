@@ -19,7 +19,7 @@ function StepRow({ n, text, tone }: { n?: number; text: string; tone: 'placed' |
     tone === 'right' ? '$greenWash' : tone === 'wrong' ? '$redWash' : tone === 'placed' ? '$blueWash' : '$card';
   return (
     <XStack gap="$3" items="center" p="$3" minH={48} rounded="$3" borderWidth={1} borderColor={border} bg={bg}>
-      {n != null ? (
+      {n == null ? null : (
         <YStack
           width={26}
           height={26}
@@ -32,7 +32,7 @@ function StepRow({ n, text, tone }: { n?: number; text: string; tone: 'placed' |
             {n}
           </Text>
         </YStack>
-      ) : null}
+      )}
       <Text flex={1} fontFamily="$body" fontSize="$4" color="$ink">
         {text}
       </Text>
@@ -56,11 +56,11 @@ export function OrderSteps({ steps, onDone, picked }: OrderStepsProps) {
         {picked.map((step, pos) => (
           <YStack key={step} gap="$1">
             <StepRow n={pos + 1} text={steps[step]} tone={step === pos ? 'right' : 'wrong'} />
-            {step !== pos ? (
+            {step === pos ? null : (
               <Text fontFamily="$body" fontSize="$2" color="$muted" pl="$2">
                 Belongs at step {step + 1}
               </Text>
-            ) : null}
+            )}
           </YStack>
         ))}
       </YStack>

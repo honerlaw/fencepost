@@ -37,7 +37,7 @@ describe('prompt builder', () => {
   it('keeps the last 20 titles, strips newlines and trims each to 60 characters', () => {
     const titles = Array.from({ length: 25 }, (_, i) => `Title ${i}`);
     expect(cleanRecent(titles)).toEqual(titles.slice(5));
-    expect(cleanRecent(['Line one\nline two', 'x'.repeat(80), '   ', 'Ends $& here'])).toEqual([
+    expect(cleanRecent(['Line one\nline two', 'x'.repeat(80), ' '.repeat(3), 'Ends $& here'])).toEqual([
       'Line one line two',
       'x'.repeat(60),
       'Ends $& here',

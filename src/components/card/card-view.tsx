@@ -36,7 +36,7 @@ function Body({
 }) {
   const picked = result?.picked;
   switch (card.type) {
-    case 'flaw':
+    case 'flaw': {
       return (
         <CodeBlock
           code={card.code}
@@ -44,7 +44,8 @@ function Body({
           reveal={result ? { answer: card.answer, picked: picked as number } : null}
         />
       );
-    case 'break':
+    }
+    case 'break': {
       return (
         <YStack gap="$3">
           <CodeBlock code={card.code} />
@@ -55,7 +56,8 @@ function Body({
           />
         </YStack>
       );
-    case 'trace':
+    }
+    case 'trace': {
       return (
         <YStack gap="$3">
           {card.input ? (
@@ -83,7 +85,8 @@ function Body({
           />
         </YStack>
       );
-    case 'model':
+    }
+    case 'model': {
       return (
         <Options
           options={card.options}
@@ -91,10 +94,12 @@ function Body({
           reveal={result ? { answer: card.answer, picked: picked as number } : null}
         />
       );
-    case 'order':
+    }
+    case 'order': {
       return (
         <OrderSteps key={card.id} steps={card.steps} onDone={onAnswer} picked={result ? (picked as number[]) : null} />
       );
+    }
   }
 }
 
@@ -138,13 +143,13 @@ export function CardView({ card, result, onAnswer, onSkip }: CardViewProps) {
         {card.prompt}
       </Text>
       <Body card={card} result={result} onAnswer={onAnswer} />
-      {!result ? (
+      {result ? null : (
         <Tap label="Skip this card" onPress={onSkip} self="center" py="$2" px="$3">
           <Text fontFamily="$body" fontSize="$3" color="$muted" textDecorationLine="underline">
             Skip this card
           </Text>
         </Tap>
-      ) : null}
+      )}
     </YStack>
   );
   if (!card.boss) return face;

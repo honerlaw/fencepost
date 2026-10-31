@@ -31,14 +31,14 @@ function printCard(card: Card, n: number) {
   console.log(`     ${card.prompt}`);
   if ('input' in card && card.input) console.log(`     Input: ${card.input}`);
   if ('code' in card) {
-    card.code.forEach((line, i) => {
+    for (const [i, line] of card.code.entries()) {
       const mark = card.type === 'flaw' && i === card.answer ? '✗' : ' ';
       console.log(`     ${mark} ${String(i + 1).padStart(2)} | ${line}`);
-    });
+    }
   }
   if ('options' in card)
-    card.options.forEach((o, i) => console.log(`     ${i === card.answer ? '✓' : ' '} ${OPTION_LETTERS[i]}. ${o}`));
-  if (card.type === 'order') card.steps.forEach((s, i) => console.log(`       ${i + 1}) ${s}`));
+    for (const [i, o] of card.options.entries()) console.log(`     ${i === card.answer ? '✓' : ' '} ${OPTION_LETTERS[i]}. ${o}`);
+  if (card.type === 'order') for (const [i, s] of card.steps.entries()) console.log(`       ${i + 1}) ${s}`);
   console.log(`     Why: ${card.why}`);
 }
 
@@ -102,15 +102,15 @@ async function main() {
       console.log(
         `\n  -> ${stats.sent} sent, ${stats.dropped} dropped, first card ${first ?? '-'} ms, total ${ms} ms, tokens in/out ${stats.usage.input}/${stats.usage.output}`,
       );
-    } catch (err) {
+    } catch (error) {
       totals.failed++;
       console.log(
-        `\n  -> batch failed after ${Date.now() - started} ms: ${err instanceof Error ? err.message : String(err)}`,
+        `\n  -> batch failed after ${Date.now() - started} ms: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
 
-  const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
+  const avg = (xs: number[]) => (xs.length > 0 ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
   const produced = totals.sent + totals.dropped;
   console.log(
     `\n=== ${model}: ${totals.sent} cards kept, ${totals.dropped} dropped (${produced ? Math.round((100 * totals.dropped) / produced) : 0}% drop rate), ${totals.failed} failed batches`,

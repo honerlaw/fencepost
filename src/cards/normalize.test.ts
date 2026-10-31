@@ -63,13 +63,13 @@ describe('normalize', () => {
   });
 
   it('needs 2 to 16 non-blank code lines', () => {
-    expect(normalize(flaw({ code: ['if x > 1:', '   '], bad_line: 'if x > 1:' }), opts())).toBeNull();
+    expect(normalize(flaw({ code: ['if x > 1:', ' '.repeat(3)], bad_line: 'if x > 1:' }), opts())).toBeNull();
     const long = Array.from({ length: 17 }, (_, i) => `x${i} = ${i}`);
     expect(normalize(flaw({ code: long, bad_line: 'x3 = 3' }), opts())).toBeNull();
   });
 
   it('drops cards missing title, prompt or why', () => {
-    expect(normalize(model({ title: '   ' }), opts())).toBeNull();
+    expect(normalize(model({ title: ' '.repeat(3) }), opts())).toBeNull();
     expect(normalize(model({ prompt: '' }), opts())).toBeNull();
     expect(normalize(model({ why: '\n' }), opts())).toBeNull();
   });

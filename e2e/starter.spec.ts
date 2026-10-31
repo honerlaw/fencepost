@@ -151,6 +151,7 @@ test('swiping up advances only after the card is answered', async ({ page }) => 
 
 test.describe('with reduced motion', () => {
   test.use({ reducedMotion: 'reduce' });
+
   test('the feed still advances', async ({ page }) => {
     await open(page);
     await answerStarter(page, STARTER[0], true);

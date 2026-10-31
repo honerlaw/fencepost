@@ -91,7 +91,7 @@ describe('daily streak', () => {
 describe('ranks', () => {
   it('maps XP to rank names at the thresholds', () => {
     const at = (xp: number) => rankFor(xp).name;
-    expect([0, 799, 800, 2500, 6000, 12000, 25000, 50000, 100000, 1e7].map(at)).toEqual([
+    expect([0, 799, 800, 2500, 6000, 12_000, 25_000, 50_000, 100_000, 1e7].map(at)).toEqual([
       'Intern',
       'Intern',
       'Junior',
@@ -107,7 +107,7 @@ describe('ranks', () => {
 
   it('reports progress to the next rank', () => {
     expect(rankFor(400)).toMatchObject({ floor: 0, next: 800, progress: 0.5 });
-    expect(rankFor(100000)).toMatchObject({ next: null, progress: 1 });
+    expect(rankFor(100_000)).toMatchObject({ next: null, progress: 1 });
   });
 });
 
@@ -151,9 +151,9 @@ describe('serve-time and gesture policies', () => {
   it('marks about 12% of generated cards 2x, never a boss', () => {
     const rng = seededRng(42);
     let doubles = 0;
-    for (let i = 0; i < 10000; i++) if (rollDouble({ boss: false }, rng)) doubles++;
-    expect(doubles / 10000).toBeGreaterThan(0.1);
-    expect(doubles / 10000).toBeLessThan(0.14);
+    for (let i = 0; i < 10_000; i++) if (rollDouble({ boss: false }, rng)) doubles++;
+    expect(doubles / 10_000).toBeGreaterThan(0.1);
+    expect(doubles / 10_000).toBeLessThan(0.14);
     for (let i = 0; i < 1000; i++) expect(rollDouble({ boss: true }, rng)).toBe(false);
   });
 

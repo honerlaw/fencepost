@@ -289,12 +289,12 @@ describe('game store batches', () => {
     calls[0].finish();
     expect(store.getState().game?.current).toEqual({ kind: 'error', code: 'upstream_error' });
 
-    clock.now += 5_000;
+    clock.now += 5000;
     store.getState().retry();
     // Try again shows the loading card at once but sends nothing until 20 s after the last batch.
     expect(store.getState().game?.current.kind).toBe('loading');
     expect(calls).toHaveLength(1);
-    vi.advanceTimersByTime(MIN_FETCH_GAP_MS - 5_000 - 1);
+    vi.advanceTimersByTime(MIN_FETCH_GAP_MS - 5000 - 1);
     expect(calls).toHaveLength(1);
     vi.advanceTimersByTime(1);
     expect(calls).toHaveLength(2);

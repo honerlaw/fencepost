@@ -11,7 +11,7 @@ const deviceId = z
   .string()
   .min(8)
   .max(64)
-  .regex(/^[A-Za-z0-9-]+$/);
+  .regex(/^[A-Z0-9-]+$/i);
 
 const CardsRequest = z.strictObject({
   deviceId,

@@ -44,7 +44,7 @@ export interface LiveSourceOptions {
  * `normalize`, so every element arrives in order (keeping plan slots aligned) and
  * invalid ones are counted as dropped instead of vanishing.
  */
-const element = jsonSchema<unknown>(() => zodSchema(RawCardSchema).jsonSchema, {
+const element = jsonSchema(() => zodSchema(RawCardSchema).jsonSchema, {
   validate: (value) => ({ success: true, value }),
 });
 
@@ -96,10 +96,10 @@ export function createLiveCardSource(opts: LiveSourceOptions): CardSource {
       for (const modelId of opts.models) {
         try {
           return await run(modelId, params, onCard);
-        } catch (err) {
+        } catch (error) {
           // Only a failure before any card reaches the player falls through to the next model.
-          if (!(err instanceof ModelFailedError) || params.signal.aborted) throw err;
-          lastError = err;
+          if (!(error instanceof ModelFailedError) || params.signal.aborted) throw error;
+          lastError = error;
         }
       }
       throw lastError ?? new Error('no model configured');

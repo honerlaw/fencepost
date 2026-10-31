@@ -69,10 +69,10 @@ export const RANKS = [
   { name: 'Junior', xp: 800 },
   { name: 'Mid-level', xp: 2500 },
   { name: 'Senior', xp: 6000 },
-  { name: 'Staff', xp: 12000 },
-  { name: 'Principal', xp: 25000 },
-  { name: 'Distinguished', xp: 50000 },
-  { name: 'Fellow', xp: 100000 },
+  { name: 'Staff', xp: 12_000 },
+  { name: 'Principal', xp: 25_000 },
+  { name: 'Distinguished', xp: 50_000 },
+  { name: 'Fellow', xp: 100_000 },
 ] as const;
 
 export interface RankInfo {

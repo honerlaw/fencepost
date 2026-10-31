@@ -117,7 +117,7 @@ function withoutCard(missed: Card[], id: string): Card[] {
 /** Strips serve-time flags so the rematch queue stores plain cards. */
 function plainCard(card: PlayedCard): Card {
   const { double: _double, rematch: _rematch, starter: _starter, ...rest } = card;
-  return rest as Card;
+  return rest;
 }
 
 /** Moves a card to the back of the rematch queue, dropping the oldest past the cap. */
@@ -285,8 +285,9 @@ export type BatchEvent =
 
 export function applyBatchEvent(state: GameState, ev: BatchEvent, deps: Deps): GameState {
   switch (ev.event) {
-    case 'start':
+    case 'start': {
       return { ...state, fetch: { ...state.fetch, domain: ev.domain } };
+    }
     case 'card': {
       const card = normalizeGenerated(ev.card);
       if (!card) return state;
@@ -304,10 +305,12 @@ export function applyBatchEvent(state: GameState, ev: BatchEvent, deps: Deps): G
       const next = { ...state, fetch: fetchSucceeded(state.fetch) };
       return isWaiting(next) ? advance(next, deps) : next;
     }
-    case 'error':
+    case 'error': {
       return batchFailed(state, 'upstream_error', deps);
-    case 'ping':
+    }
+    case 'ping': {
       return state;
+    }
   }
 }
 
