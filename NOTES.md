@@ -94,7 +94,7 @@ Signing credentials and the App Store Connect API key live on EAS, not in Dopple
 
 The Fly app `fencepost` already exists, in the personal org, because `onerlaw-llc` has overdue invoices and Fly refused to create it there. After clearing those, `fly apps move fencepost --org onerlaw-llc` moves it.
 
-Finish these before merging the workflow, because the merge is the first production deploy:
+Steps 2 to 4 were done on 2026-10-31. They're kept here for rebuilding the app or rotating the token. Check step 1 before merging the workflow, because the merge is the first production deploy:
 
 1. **Set a hard credit limit on the OpenRouter key.** Once deployed, `/api/cards` is public and spends that credit.
 2. Copy the runtime secrets to Fly. Don't add `FLY_API_TOKEN` to `prd`, because a Doppler sync to Fly would hand the app its own deploy token.
@@ -131,7 +131,7 @@ These were left undone on purpose. Most need your accounts, money or hardware, o
 
 1. **Keep checking card correctness. This is the most important step.** The model is chosen (see "Card model" above), but correctness rests on 50 hand-checked cards. Spot-check generated cards during real play, and rerun `npm run cards:eval -- --model <id> --batches 5` and read every card after changing the prompt or the model. The automated tests cover only the plumbing, validation and streaming, using a mock model and a local fake OpenRouter.
 2. **OpenRouter key and credit limit.** Set a hard credit limit on the key in the OpenRouter dashboard as the cost backstop.
-3. **Fly.io.** The app exists but nothing is deployed. Finish the one-time setup under "Deploying the server", then merge the workflow.
+3. **Fly.io.** The app and its secrets are set up, but nothing is deployed. Set the credit limit from step 2 here, then merge the workflow (see "Deploying the server").
 4. **A production native build against Fly.** Play a generated batch in a release build pointed at the deployed server.
 5. **iOS development build.** A Release simulator build compiled on EAS on 2026-10-31 (build `8cd5fd36`, Xcode 27.1) and launched on the iOS 26.3 simulator to the starter deck, with the fonts and styling intact. That proves the compile, the plugins that run at build time and the `expo-updates` config. Still untested: a device-signed build, and a debug development build.
    - `npx expo run:ios` needs **Xcode 26.4+** (SDK 58's requirement). With Xcode 26.2 it fails inside Expo's own native code, not app code:
