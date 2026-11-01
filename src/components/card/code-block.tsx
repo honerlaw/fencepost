@@ -85,6 +85,7 @@ export function CodeBlock({ code, onPickLine, reveal }: Readonly<CodeBlockProps>
     <YStack bg="$wash" rounded="$3" borderWidth={1} borderColor="$rule" overflow="hidden">
       <ScrollView
         horizontal
+        alwaysBounceHorizontal={false}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingVertical: 12, paddingRight: 24 }}
       >

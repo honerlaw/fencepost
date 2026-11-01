@@ -1,3 +1,5 @@
+import type { Score } from './rules';
+
 export type CardType = 'flaw' | 'break' | 'trace' | 'model' | 'order';
 
 export type DomainId =
@@ -43,6 +45,21 @@ export type Card = FlawCard | BreakCard | TraceCard | ModelCard | OrderCard;
 /** Flags added on the client when a card is served; the server never sends them. */
 export type PlayedCard = Card & { double?: boolean; rematch?: boolean; starter?: boolean };
 
+/** What the player needs to see an answered card again. */
+export interface ReviewedResult {
+  correct: boolean;
+  /** Tapped line / option index, or the order the player placed the steps in. */
+  picked: number | number[];
+  score: Score;
+  verdict: string;
+  flagged: boolean;
+}
+
+export interface ReviewEntry {
+  card: PlayedCard;
+  result: ReviewedResult;
+}
+
 export interface Progress {
   v: 1;
   xp: number;
@@ -56,6 +73,8 @@ export interface Progress {
   missed: Card[];
   /** Recent card titles, max 30: blocks repeats, and resumes the starter deck after a restart. */
   recent: string[];
+  /** Answered cards, oldest first, max 50. Missing from progress saved before review existed. */
+  history?: ReviewEntry[];
   /** Empty means all topics. */
   domains: DomainId[];
   starterDone: boolean;

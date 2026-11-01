@@ -1,18 +1,12 @@
-import type { HapticPattern, Score } from '../rules';
+import type { HapticPattern } from '../rules';
 import type { FetchErrorCode, FetchState } from '../fetch-policy';
-import type { PlayedCard, Progress, Rng } from '../types';
+import type { PlayedCard, Progress, ReviewedResult, Rng } from '../types';
 
-export interface AnswerResult {
-  correct: boolean;
-  /** Tapped line / option index, or the order the player placed the steps in. */
-  picked: number | number[];
-  score: Score;
-  verdict: string;
+export interface AnswerResult extends ReviewedResult {
   toasts: string[];
   haptic: HapticPattern;
   /** Undo data for "card was wrong". */
   undo: { combo: number };
-  flagged: boolean;
 }
 
 export type Slot =

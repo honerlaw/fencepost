@@ -29,4 +29,10 @@ export const WRONG_WORDS = ['Not quite.', 'Bug escaped.', 'Rolled back.', 'Close
 
 export const DOUBLE_CHANCE = 0.12;
 
+/** How far a swipe travels to count. */
+export const SWIPE_DISTANCE = 60;
+
+/** A swipe must run this many times further along its axis than across it. */
+export const SWIPE_DOMINANCE = 1.5;
+
 export const BACKGROUND_CANCEL_MS = 60_000;

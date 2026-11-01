@@ -15,6 +15,7 @@ import {
   rollDouble,
   scoreAnswer,
   shouldCancelInBackground,
+  swipeDirection,
   updateStreak,
   verdictWord,
   WRONG_WORDS,
@@ -166,5 +167,25 @@ describe('serve-time and gesture policies', () => {
     expect(shouldCancelInBackground(null, 1_000_000)).toBe(false);
     expect(shouldCancelInBackground(0, 60_000)).toBe(false);
     expect(shouldCancelInBackground(0, 60_001)).toBe(true);
+  });
+
+  it.each([
+    { dx: 0, dy: -60, want: 'up' },
+    { dx: 39, dy: -60, want: 'up' },
+    { dx: 60, dy: 0, want: 'right' },
+    { dx: -60, dy: 0, want: 'left' },
+    { dx: 90, dy: -59, want: 'right' },
+    { dx: -90, dy: 59, want: 'left' },
+    // A diagonal is neither, or a slanted right swipe would tap Next.
+    { dx: 70, dy: -62, want: null },
+    { dx: 60, dy: -60, want: null },
+    { dx: -70, dy: -62, want: null },
+    { dx: 40, dy: -60, want: null },
+    // Too short, or downward.
+    { dx: 59, dy: 0, want: null },
+    { dx: 0, dy: -59, want: null },
+    { dx: 0, dy: 200, want: null },
+  ])('reads a drag of ($dx, $dy) as $want', ({ dx, dy, want }) => {
+    expect(swipeDirection(dx, dy)).toBe(want);
   });
 });

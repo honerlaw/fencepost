@@ -16,3 +16,10 @@
 - Pre-flight: no collision. `2026-10-31-narrow-picket-f` and `honerlawd/docs-card-model` have merged PRs. Peer session `fencepost-0d` not messaged (no authorization), so its state is unknown. No open issues.
 - Base: `origin/main` 4fb5af8; local `main` is 2 commits behind.
 - Ship: memory `no-fly-deploys` says to stop at a local commit and ask before any push. Ask at Phase 6.
+
+## Work notes
+- Pre-existing hook gap: the first commit in a fresh worktree printed "Can't find lefthook in PATH" and passed unchecked, because the worktree had no `node_modules` yet. It only held docs. After `npm ci` hooks should run; confirm on the next commit.
+- The `one-export-per-file` lint rule forced `VerdictBody` to take its buttons as data, with `VerdictPanel` and `ReviewVerdict` as thin files. Better than a mode flag anyway.
+- `ReviewedResult` moved to `game/types.ts`, with `AnswerResult extends ReviewedResult`, so `game/types` does not import from the engine.
+- The toast container is always rendered; assert its text is empty, not that it is absent.
+- reload e2e needs no explicit wait: pagehide flushes the debounced save, as the existing specs rely on.

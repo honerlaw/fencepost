@@ -1,6 +1,7 @@
 import { celebrationsFor, hapticFor, localDay, scoreAnswer, updateStreak, verdictWord } from '../rules';
 import type { Progress } from '../types';
 import { isCorrect } from './is-correct';
+import { pushHistory } from './push-history';
 import { pushRecent } from './push-recent';
 import { toBack } from './to-back';
 import type { AnswerResult, Deps, GameState } from './types';
@@ -19,6 +20,7 @@ export function answer(state: GameState, picked: number | number[], deps: Deps):
   const score = scoreAnswer({ correct, boss: card.boss, double: card.double === true, combo });
   const streak = updateStreak(state.progress, localDay(new Date(deps.now)));
   const wasMissed = state.progress.missed.some((c) => c.id === card.id);
+  const reviewed = { correct, picked, score, verdict: verdictWord(correct, card.boss, deps.rng), flagged: false };
 
   let missed = state.progress.missed;
   if (!correct) missed = toBack(missed, card);
@@ -35,18 +37,15 @@ export function answer(state: GameState, picked: number | number[], deps: Deps):
     lastDay: streak.lastDay,
     missed,
     recent: pushRecent(state.progress.recent, card.title),
+    history: pushHistory(state.progress.history, { card, result: reviewed }),
     starterDone: state.progress.starterDone || lastStarter,
   };
 
   const result: AnswerResult = {
-    correct,
-    picked,
-    score,
-    verdict: verdictWord(correct, card.boss, deps.rng),
+    ...reviewed,
     toasts: celebrationsFor({ xpBefore: state.progress.xp, xpAfter: progress.xp, combo, streak }),
     haptic: hapticFor(correct),
     undo: { combo: state.combo },
-    flagged: false,
   };
 
   return {

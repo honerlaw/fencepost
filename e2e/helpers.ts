@@ -107,6 +107,32 @@ export async function swipeUp(page: Page): Promise<void> {
   await page.mouse.up();
 }
 
+/** Drags sideways over the card area with the mouse: right is +1, left is -1. */
+async function swipeSideways(page: Page, direction: 1 | -1): Promise<void> {
+  const box = (await page.getByTestId('top-bar').boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height + 300;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) await page.mouse.move(x + direction * i * 15, y, { steps: 2 });
+  await page.mouse.up();
+}
+
+export const swipeRight = (page: Page): Promise<void> => swipeSideways(page, 1);
+export const swipeLeft = (page: Page): Promise<void> => swipeSideways(page, -1);
+
+/** Answers the first `count` starter cards right, ending on the next, unanswered card. */
+export async function playStarters(page: Page, count: number): Promise<void> {
+  for (const c of STARTER.slice(0, count)) {
+    await answerStarter(page, c, true);
+    await nextCard(page);
+  }
+}
+
+export function reviewCard(page: Page): Locator {
+  return page.getByTestId('review-card');
+}
+
 export async function openTopics(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Topics and stats' }).click();
   await expect(page.getByTestId('topics-sheet')).toBeVisible();
