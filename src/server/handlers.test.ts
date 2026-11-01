@@ -314,7 +314,7 @@ describe('/api/cards streaming', () => {
     expect(await next()).toEqual({ event: 'done', sent: 1 });
   });
 
-  it('gives up after 90 s with an error event', async () => {
+  it('gives up at the batch timeout with an error event', async () => {
     vi.useFakeTimers();
     const m = handModel();
     const { handlers, logs } = setup({ primary: m.model });

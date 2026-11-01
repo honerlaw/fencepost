@@ -25,7 +25,6 @@ const RULES: Rule[] = [
   { name: 'range()', pattern: /\brange\(/ },
   { name: '.append()', pattern: /\.append\(/ },
   { name: '.push()', pattern: /\.push\(/ },
-  { name: '.length', pattern: /\.length\b/ },
   { name: '//', pattern: /\/\// },
   { name: '%', pattern: /%/ },
   { name: '**', pattern: /\*\*/ },
@@ -42,9 +41,10 @@ const RULES: Rule[] = [
   { name: 'braces', pattern: /[{}]/ },
   { name: 'trailing semicolon', pattern: /;\s*$/ },
   { name: '# comment', pattern: /#/ },
-  { name: 'negative index', pattern: /\[\s*-\s*\d/ },
-  { name: 'f-string', pattern: /\bf""/ },
-  { name: 'list repetition', pattern: /(?:^|[\s(=,])\[[^\]]*\]\s*\*/ },
+  { name: 'negative index', pattern: /\[\s*-/ },
+  { name: 'f-string', pattern: /\b[a-z]?f""/ },
+  { name: 'list repetition', pattern: /(?:^|[\s(=,])\[[^*]*\]\s*\*|\*\s*\[/ },
+  { name: 'bitwise operator', pattern: /<<|>>|[\^&|]/ },
 ];
 
 const QUOTED = /"(?:[^"\\]|\\.)*"/g;
@@ -56,10 +56,11 @@ function isInlineConditional(line: string): boolean {
   return ifAt > 0 && words[0] !== 'else' && words.indexOf('else') > ifAt;
 }
 
-/** `[t for t in items`: the loop can run past the bracket when a line was wrapped. */
+/** `[t for t in items]`, or `count(t for t in items)`, as opposed to a line that opens with `for each`. */
 function isComprehension(line: string): boolean {
-  const open = line.indexOf('[');
-  return open !== -1 && line.slice(open).split(/\s+/).includes('for');
+  const words = line.trim().split(/\s+/);
+  const forAt = words.indexOf('for');
+  return forAt > 0 && words.indexOf('in', forAt) > forAt;
 }
 
 /** `items[1:3]`: a colon before the bracket closes. */

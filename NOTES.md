@@ -60,7 +60,7 @@ Card code moved from Python-like to language-neutral pseudocode, and each card n
 | Average batch | 39.2 s | 58.2 s |
 | Slowest batch | 56.4 s | 80.7 s |
 
-Runs of one prompt differ by more than 10 s, so these figures are approximate. The new prompt timed out 2 times in 25 batches at the old 90 s limit. No batch passed 90 s in the run above, so the 120 s limit is not yet proven, and 10 clean batches can't rule out timeouts. The Opus fallback ran 2 batches at 53 s and 58 s, too few to conclude anything.
+Runs of one prompt differ by more than 10 s, so these figures are approximate. Across the shortened versions of the new prompt, 2 of 25 batches timed out at the old 90 s limit. No batch passed 90 s in the run above, so the 120 s limit is not yet proven, and 10 clean batches can't rule out timeouts. The Opus fallback ran 2 batches at 53 s and 58 s, too few to conclude anything.
 
 An independent read of 55 cards from the final prompt found no wrong answers, and small problems on 11 cards: unstated rules and a few ambiguous options. Language-specific syntax is enforced by `findLanguageSyntax` in `src/cards/normalize/language-syntax.ts`, which drops flaw, break and trace cards that use it. It's a denylist, so the prompt still does most of the work. The 34-character line limit in the prompt isn't enforced: 16 of 277 lines passed it, longest 46, and code blocks scroll sideways.
 

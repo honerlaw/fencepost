@@ -68,6 +68,8 @@ function printCard(card: Card, n: number) {
 function tally(totals: Totals, type: string, field: 'kept' | 'dropped') {
   const row = totals.byType.get(type) ?? { kept: 0, dropped: 0 };
   row[field]++;
+  if (field === 'kept') totals.sent++;
+  else totals.dropped++;
   totals.byType.set(type, row);
 }
 
@@ -132,10 +134,8 @@ async function runBatch(source: CardSource, domain: DomainId, label: string, tot
       },
     );
     const ms = Date.now() - started;
-    totals.sent += stats.sent;
-    totals.dropped += stats.dropped;
-    // A timed-out batch returns normally, so an empty batch has to be counted here.
-    if (stats.sent === 0) totals.failed++;
+    // A timed-out batch returns normally, so it has to be counted here.
+    if (stats.sent === 0 || ms >= BATCH_TIMEOUT_MS) totals.failed++;
     totals.ms.push(ms);
     if (seen.first != null) totals.firstCardMs.push(seen.first);
     console.log(
