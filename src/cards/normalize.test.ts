@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { seededRng } from '@/game/rng';
 import type { BreakCard, FlawCard, ModelCard, OrderCard, TraceCard } from '@/game/types';
-import { LIMITS, normalize } from './normalize';
+import { findLanguageSyntax, LIMITS, normalize } from './normalize';
 import { loadStarterDeck } from './starter';
 
 let n = 0;
@@ -28,7 +28,7 @@ const raw = (over: Record<string, unknown>) => ({
 });
 
 const flaw = (over: Record<string, unknown> = {}) =>
-  raw({ code: ['def f(x):', '  if x > 1:', '    return x', '  return 0'], bad_line: 'if x > 1:', ...over });
+  raw({ code: ['function f(x):', '  if x > 1:', '    return x', '  return 0'], bad_line: 'if x > 1:', ...over });
 
 const model = (over: Record<string, unknown> = {}) =>
   raw({ type: 'model', options: ['Alpha', 'Beta', 'Gamma', 'Delta'], correct: 'Gamma', ...over });
@@ -56,10 +56,10 @@ describe('normalize', () => {
 
   it('converts tabs to two spaces, strips trailing spaces, keeps indentation', () => {
     const card = normalize(
-      flaw({ code: ['def f(x):   ', '\tif x > 1:', '\t\treturn x', '\treturn 0'] }),
+      flaw({ code: ['function f(x):   ', '\tif x > 1:', '\t\treturn x', '\treturn 0'] }),
       opts(),
     ) as FlawCard;
-    expect(card.code).toEqual(['def f(x):', '  if x > 1:', '    return x', '  return 0']);
+    expect(card.code).toEqual(['function f(x):', '  if x > 1:', '    return x', '  return 0']);
   });
 
   it('needs 2 to 16 non-blank code lines', () => {
@@ -106,8 +106,16 @@ describe('normalize', () => {
     expect(orders.size).toBeGreaterThan(1);
   });
 
+  it('drops flaw, break and trace cards with language-specific syntax', () => {
+    const code = ['function f(n):', '  return n // 2'];
+    const options = { options: ['a', 'b', 'c'], correct: 'a' };
+    expect(normalize(flaw({ code, bad_line: 'return n // 2' }), opts())).toBeNull();
+    expect(normalize(raw({ type: 'break', code, ...options }), opts())).toBeNull();
+    expect(normalize(raw({ type: 'trace', code, input: 'n = 5', ...options }), opts())).toBeNull();
+  });
+
   it('converts break and trace cards, keeping a trace input', () => {
-    const code = ['def f(n):', '  return n // 2'];
+    const code = ['function f(n):', '  return n / 2'];
     const br = normalize(
       raw({ type: 'break', code, options: ['a', 'b', 'c', 'd'], correct: 'c' }),
       opts(),
@@ -151,6 +159,15 @@ describe('starter deck', () => {
     expect(a.map((c) => c.type)).toEqual(['flaw', 'model', 'break', 'trace', 'order', 'flaw']);
   });
 
+  it('keeps every starter card free of language-specific syntax', () => {
+    const cards = loadStarterDeck(seededRng(1));
+    const lines = cards.flatMap((c) => ('code' in c ? c.code : []));
+    expect(lines).toHaveLength(23);
+    expect(lines.filter((line) => findLanguageSyntax(line) !== null)).toEqual([]);
+    const prose = cards.flatMap((c) => [c.prompt, c.why, ...('input' in c && c.input != null ? [c.input] : [])]);
+    expect(prose.join(' ')).not.toMatch(/\/\/|\*\*|\blen\(|\.append\(/);
+  });
+
   it('keeps every starter answer right whatever the shuffle', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const [overlap, hosts, bill, trace, , billing] = loadStarterDeck(seededRng(seed));
@@ -158,7 +175,7 @@ describe('starter deck', () => {
       expect((hosts as ModelCard).options[(hosts as ModelCard).answer]).toBe('A unique constraint on (table_id, slot)');
       expect((bill as BreakCard).options[(bill as BreakCard).answer]).toBe('$100.00 split 3 ways');
       expect((trace as TraceCard).options[(trace as TraceCard).answer]).toBe('Allowed, as the 4th call in a minute');
-      expect((billing as FlawCard).code[(billing as FlawCard).answer]).toBe('  hours = mins // 60');
+      expect((billing as FlawCard).code[(billing as FlawCard).answer]).toBe('  hours = round_down(mins / 60)');
     }
   });
 });

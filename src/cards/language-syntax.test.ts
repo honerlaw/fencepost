@@ -1,0 +1,113 @@
+import { describe, expect, it } from 'vitest';
+
+import { findLanguageSyntax } from './normalize';
+
+describe('findLanguageSyntax', () => {
+  it.each([
+    ['def', 'def allow(user, now):'],
+    ['elif', 'elif x > 1:'],
+    ['lambda', 'key = lambda x: x'],
+    ['None', 'return None'],
+    ['True', 'return True'],
+    ['False', 'return False'],
+    ['null', 'return null'],
+    ['nil', 'if x == nil:'],
+    ['const', 'const LIMIT = 3'],
+    ['let', 'let total = 0'],
+    ['var', 'var total = 0'],
+    ['print()', 'print(total)'],
+    ['len()', 'if len(hits) > LIMIT:'],
+    ['range()', 'for each w in range(0, count):'],
+    ['.append()', 'hits.append(now)'],
+    ['.push()', 'hits.push(now)'],
+    ['//', 'hours = mins // 60'],
+    ['%', 'left = total % n'],
+    ['**', 'wait = base ** attempt'],
+    ['&&', 'if a && b:'],
+    ['||', 'if a || b:'],
+    ['! as not', 'if !done:'],
+    ['strict equality', 'if a === b:'],
+    ['strict equality', 'if a !== b:'],
+    ['=>', 'hits.filter(t => t > now)'],
+    ['->', 'function total(x) -> int:'],
+    [':=', 'if (n := count(x)) > 1:'],
+    ['++ or --', 'count++'],
+    ['++ or --', 'count--'],
+    ['compound assignment', 'count += 1'],
+    ['compound assignment', 'show.left -= n'],
+    ['compound assignment', 'price *= 2'],
+    ['compound assignment', 'price /= 2'],
+    ['ternary or null operator', 'x = a ? b : c'],
+    ['ternary or null operator', 'x = a ?? b'],
+    ['ternary or null operator', 'x = a?.b'],
+    ['braces', 'seen = {}'],
+    ['trailing semicolon', 'x = 1;'],
+    ['# comment', 'RATE = 400  # cents per hour'],
+    ['comprehension', 'hits = [t for t in log[user]'],
+    ['comprehension', '  t for t in log[user]'],
+    ['comprehension', 'n = sum(1 for t in hits)'],
+    ['comprehension', 'n = count(t for t in log[user])'],
+    ['slice', 'first = items[0:3]'],
+    ['slice', 'rest = items[1:]'],
+    ['negative index', 'last = items[-1]'],
+    ['negative index', 'last = items[-n]'],
+    ['f-string', 'name = f"{first} {last}"'],
+    ['f-string', 'name = rf"a"'],
+    ['list repetition', 'return [share] * n'],
+    ['list repetition', 'return n * [share]'],
+    ['list repetition', 'x = [[0]] * n'],
+    ['bitwise operator', 'wait = 1 << attempt'],
+    ['bitwise operator', 'x = a ^ b'],
+    ['bitwise operator', 'flags = flags | MASK'],
+    ['inline conditional', 'x = a if ok else b'],
+    ['inline conditional', 'return a if ok else b'],
+  ])('names %s in %s', (name, line) => {
+    expect(findLanguageSyntax(line)).toBe(name);
+  });
+
+  it.each([
+    'function can_book(table, s, e):',
+    'function name(args):',
+    'for each r in table.reservations:',
+    'while left > 0:',
+    'if r.status == "cancelled":',
+    'else if x > 1:',
+    'else:',
+    'continue',
+    'break',
+    'return true',
+    'return false',
+    'return none',
+    'x = x + 1',
+    'share = round_down(cents / n)',
+    'hours = round_up(mins / 60)',
+    'left = remainder(total, n)',
+    'add now to hits',
+    'remove x from items',
+    'return n copies of share',
+    'n = calls_since(user, now - 60)',
+    'if count(items) >= LIMIT:',
+    'if a and b or not c:',
+    'return hours * CENTS_PER_HOUR',
+    'total = rates[size] * qty',
+    'default_rate = 400',
+    'x = strlen(y)',
+    'if x >= -1:',
+    'if a != b:',
+    'if a <= b:',
+    'a[x] == b[y]',
+    'calls[user] = 0',
+    'wait = now - 60',
+    'if trip.length > 30:',
+    'add fee to totals[user] for order',
+    'hold seats[show] for user',
+  ])('allows %s', (line) => {
+    expect(findLanguageSyntax(line)).toBeNull();
+  });
+
+  it('ignores banned text inside quoted strings', () => {
+    expect(findLanguageSyntax('url = "https://a.example/#x"')).toBeNull();
+    expect(findLanguageSyntax('if label == "100% {done}":')).toBeNull();
+    expect(findLanguageSyntax(String.raw`note = "say \"def\" twice"`)).toBeNull();
+  });
+});

@@ -45,6 +45,7 @@ export function createLiveCardSource(opts: LiveSourceOptions): CardSource {
         : null;
       if (!card) {
         dropped++;
+        opts.onDrop?.(raw);
         continue;
       }
       onCard(card);

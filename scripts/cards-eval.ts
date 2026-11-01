@@ -7,9 +7,12 @@
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 
 import { domainName, isDomainId } from '@/cards/domains';
+import { findLanguageSyntax } from '@/cards/normalize';
+import { RawCardSchema } from '@/cards/schema';
 import { OPTION_LETTERS } from '@/components/card/labels';
 import type { Card, DomainId } from '@/game/types';
 import { createLiveCardSource, type CardSource } from '@/server/card-source';
+import { BATCH_TIMEOUT_MS } from '@/server/handlers';
 import { makePlan, pickDomain, pickFlavor } from '@/server/plan';
 import { buildPrompt } from '@/server/prompt';
 
@@ -21,6 +24,8 @@ interface Totals {
   failed: number;
   ms: number[];
   firstCardMs: number[];
+  /** Kept and dropped counts by card type. */
+  byType: Map<string, { kept: number; dropped: number }>;
 }
 
 function arg(name: string): string | undefined {
@@ -60,6 +65,31 @@ function printCard(card: Card, n: number) {
   console.log(`     Why: ${card.why}`);
 }
 
+function tally(totals: Totals, type: string, field: 'kept' | 'dropped') {
+  const row = totals.byType.get(type) ?? { kept: 0, dropped: 0 };
+  row[field]++;
+  if (field === 'kept') totals.sent++;
+  else totals.dropped++;
+  totals.byType.set(type, row);
+}
+
+/** Prints why a card was dropped, so a high drop rate can be traced to its cause. */
+function reportDrop(raw: unknown, totals: Totals) {
+  const parsed = RawCardSchema.safeParse(raw);
+  if (!parsed.success) {
+    tally(totals, 'invalid', 'dropped');
+    console.log('\n  DROPPED: failed the schema');
+    return;
+  }
+  const { type, title, code } = parsed.data;
+  tally(totals, type, 'dropped');
+  const hits = (code ?? []).flatMap((line) => {
+    const name = findLanguageSyntax(line);
+    return name === null ? [] : [`${name} in "${line.trim()}"`];
+  });
+  console.log(`\n  DROPPED: ${title} [${type}]: ${hits.length > 0 ? hits.join('; ') : 'other validation'}`);
+}
+
 function requestedDomains(): DomainId[] {
   const domain = arg('domain');
   if (!isSet(domain)) return [];
@@ -95,16 +125,17 @@ async function runBatch(source: CardSource, domain: DomainId, label: string, tot
         domain,
         plan,
         prompt: buildPrompt({ domain, plan, flavor, recent: [] }),
-        signal: AbortSignal.timeout(90_000),
+        signal: AbortSignal.timeout(BATCH_TIMEOUT_MS),
       },
       (card) => {
         seen.first ??= Date.now() - started;
+        tally(totals, card.type, 'kept');
         printCard(card, ++seen.n);
       },
     );
     const ms = Date.now() - started;
-    totals.sent += stats.sent;
-    totals.dropped += stats.dropped;
+    // A timed-out batch returns normally, so it has to be counted here.
+    if (stats.sent === 0 || ms >= BATCH_TIMEOUT_MS) totals.failed++;
     totals.ms.push(ms);
     if (seen.first != null) totals.firstCardMs.push(seen.first);
     console.log(
@@ -129,11 +160,13 @@ function printTotals(model: string, totals: Totals) {
     `\n=== ${model}: ${totals.sent} cards kept, ${totals.dropped} dropped (${dropRate}% drop rate), ${totals.failed} failed batches`,
   );
   console.log(`    average first card ${average(totals.firstCardMs)} ms, average batch ${average(totals.ms)} ms`);
+  for (const [type, row] of totals.byType) console.log(`    ${type}: ${row.kept} kept, ${row.dropped} dropped`);
   console.log('    Now read every card above: a puzzle with a wrong answer is the worst bug this app can have.');
 }
 
 async function main() {
   const { apiKey, model, batches, requested } = readConfig();
+  const totals: Totals = { sent: 0, dropped: 0, failed: 0, ms: [], firstCardMs: [], byType: new Map() };
   const baseURL = env['OPENROUTER_BASE_URL'];
   const openrouter = createOpenRouter({ apiKey, ...(isSet(baseURL) ? { baseURL } : {}) });
   const source = createLiveCardSource({
@@ -142,9 +175,11 @@ async function main() {
     maxOutputTokens: Number(env['CARD_MAX_OUTPUT_TOKENS'] ?? 16_000),
     rng: Math.random,
     newId: () => crypto.randomUUID(),
+    onDrop: (raw) => {
+      reportDrop(raw, totals);
+    },
   });
 
-  const totals: Totals = { sent: 0, dropped: 0, failed: 0, ms: [], firstCardMs: [] };
   let previous: DomainId | undefined;
   for (let b = 1; b <= batches; b++) {
     const domain = pickDomain(requested, previous, Math.random);

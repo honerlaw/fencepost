@@ -31,4 +31,6 @@ export interface LiveSourceOptions {
   maxOutputTokens: number;
   rng: Rng;
   newId: () => string;
+  /** Called with each element the model produced that was dropped. */
+  onDrop?: (raw: unknown) => void;
 }

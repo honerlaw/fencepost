@@ -10,8 +10,8 @@ export const AUTO_RETRY_AFTER_ANSWERS = 3;
  */
 export const MIN_FETCH_GAP_MS = 20_000;
 
-/** A batch still open after this long is given up: the server ends every batch within 90 s. */
-export const BATCH_DEADLINE_MS = 100_000;
+/** A batch still open after this long is given up: the server ends every batch within 120 s. */
+export const BATCH_DEADLINE_MS = 130_000;
 
 export const initialFetchState: FetchState = {
   inFlight: false,
