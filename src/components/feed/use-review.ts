@@ -24,7 +24,7 @@ export function useReview(game: GameState | null): Review {
   const position = Math.min(back, entries.length);
   const hasOlder = position < entries.length;
   return {
-    entry: entries[position - 1] ?? null,
+    entry: entries[entries.length - position] ?? null,
     position,
     hasOlder,
     older: () => setBack(hasOlder ? position + 1 : position),

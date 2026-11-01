@@ -565,11 +565,11 @@ describe('review history', () => {
     expect(reviewEntries(right(s))).toEqual([]);
   });
 
-  it('lists earlier cards newest first, leaving out the answered card on screen', () => {
+  it('lists earlier cards oldest first, leaving out the answered card on screen', () => {
     const [a, b, c] = [modelCard({ title: 'A' }), modelCard({ title: 'B' }), modelCard({ title: 'C' })];
     const afterTwo = played(played(playing([a, b, c])));
-    expect(reviewTitles(afterTwo)).toEqual(['B', 'A']);
-    expect(reviewTitles(right(afterTwo))).toEqual(['B', 'A']);
+    expect(reviewTitles(afterTwo)).toEqual(['A', 'B']);
+    expect(reviewTitles(right(afterTwo))).toEqual(['A', 'B']);
   });
 
   it('offers the last card on a status slot', () => {

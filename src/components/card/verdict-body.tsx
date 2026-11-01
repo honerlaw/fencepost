@@ -2,6 +2,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Text, XStack, YStack } from 'tamagui';
 
 import { Tap } from '@/components/ui/tap';
+import { TextButton } from '@/components/ui/text-button';
 import type { PlayedCard, ReviewedResult } from '@/game/types';
 
 function Tag({ label }: Readonly<{ label: string }>) {
@@ -26,16 +27,6 @@ function PrimaryButton({ label, onPress }: Readonly<{ label: string; onPress: ()
   return (
     <Tap label={label} onPress={onPress} bg="$ink" rounded="$4" py="$3" items="center">
       <Text fontFamily="$display" fontWeight="800" fontSize="$5" color="$card">
-        {label}
-      </Text>
-    </Tap>
-  );
-}
-
-function TextButton({ label, onPress }: Readonly<{ label: string; onPress: () => void }>) {
-  return (
-    <Tap label={label} onPress={onPress} self="center" py="$1" px="$3">
-      <Text fontFamily="$body" fontSize="$3" color="$muted" textDecorationLine="underline">
         {label}
       </Text>
     </Tap>

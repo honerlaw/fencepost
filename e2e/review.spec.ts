@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { GENERATED, ndjson } from './generated';
 import {
   answerStarter,
   card,
@@ -34,18 +35,20 @@ test('swiping right walks back through answered cards, and left walks forward to
   const missedVerdict = await page.getByTestId('verdict').textContent();
   await nextCard(page);
   await answerStarter(page, SECOND, true);
+  const points = await page.getByTestId('verdict-points').textContent();
   await nextCard(page);
   await expect(card(page).getByRole('heading', { name: THIRD.title })).toBeVisible();
 
   await swipeRight(page);
   await expect(reviewCard(page).getByRole('heading', { name: SECOND.title })).toBeVisible();
   await expect(page.getByTestId('review-verdict')).toContainText(SECOND.why);
+  await expect(page.getByTestId('review-verdict').getByTestId('verdict-points')).toHaveText(points!);
 
   await swipeRight(page);
   await expect(reviewCard(page).getByRole('heading', { name: FIRST.title })).toBeVisible();
   const verdict = page.getByTestId('review-verdict');
   await expect(verdict).toContainText(FIRST.why);
-  // The stored verdict word and points, and the reveal of the wrong line.
+  // The stored verdict word, and the reveal of the wrong line.
   await expect(verdict).toContainText(missedVerdict!.slice(0, 8));
   await expect(reviewCard(page).getByTestId('marker-circle')).toHaveCount(1);
 
@@ -66,6 +69,7 @@ test('a reviewed card cannot be redone and changes nothing', async ({ page }) =>
   await nextCard(page);
   await answerStarter(page, SECOND, true);
   const xp = await page.getByTestId('xp').textContent();
+  await expect(page.getByTestId('toasts')).toHaveText('');
 
   await swipeRight(page);
   await expect(reviewCard(page).getByRole('heading', { name: FIRST.title })).toBeVisible();
@@ -73,7 +77,8 @@ test('a reviewed card cannot be redone and changes nothing', async ({ page }) =>
   for (const name of [/^Line \d+/, /^Option [A-E]/, /^Place:/, 'Skip this card', 'Card was wrong', 'Next card']) {
     await expect(page.getByRole('button', { name })).toHaveCount(0);
   }
-  await expect(page.getByTestId('toasts')).toHaveText('');
+  // No retrying: a toast fired by the review would expire and pass a retried check.
+  await expect(page.getByTestId('toasts')).toHaveText('', { timeout: 0 });
 
   await page.getByRole('button', { name: 'Back to current card' }).click();
   await expect(reviewCard(page)).toHaveCount(0);
@@ -106,8 +111,21 @@ test('the buttons walk the same history as the swipes', async ({ page }) => {
   await page.getByRole('button', { name: 'Older card' }).click();
   await expect(reviewCard(page).getByRole('heading', { name: FIRST.title })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Older card' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Newer card' }).click();
+  await expect(reviewCard(page).getByRole('heading', { name: SECOND.title })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Newer card' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Back to current card' }).click();
   await expect(card(page).getByRole('heading', { name: THIRD.title })).toBeVisible();
+});
+
+test('an accidental Next can be undone from the unanswered card, with no swipe', async ({ page }) => {
+  await open(page);
+  await answerStarter(page, FIRST, true);
+  await nextCard(page);
+  await expect(card(page).getByRole('heading', { name: SECOND.title })).toBeVisible();
+  await page.getByRole('button', { name: 'Previous card' }).click();
+  await expect(reviewCard(page).getByRole('heading', { name: FIRST.title })).toBeVisible();
+  await expect(page.getByTestId('review-verdict')).toContainText(FIRST.why);
 });
 
 test('no earlier card means no Previous card button', async ({ page }) => {
@@ -169,6 +187,74 @@ test('a status card can look back too, and is still there on return', async ({ p
   await swipeLeft(page);
   await expect(reviewCard(page)).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+});
+
+test('an answered order card and a flagged card look back as they ended', async ({ page }) => {
+  const index = STARTER.findIndex((c) => c.type === 'order');
+  const order = STARTER[index]!;
+  await open(page);
+  await playStarters(page, index);
+  await answerStarter(page, order, false);
+  await page.getByRole('button', { name: 'Card was wrong' }).click();
+  await nextCard(page);
+
+  await swipeRight(page);
+  await expect(reviewCard(page).getByRole('heading', { name: order.title })).toBeVisible();
+  await expect(
+    reviewCard(page)
+      .getByText(/^Belongs at step/)
+      .first(),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Place:/ })).toHaveCount(0);
+  await expect(page.getByTestId('review-verdict')).toContainText("won't count against you");
+});
+
+test('a batch landing behind a review waits there', async ({ page }) => {
+  const { promise: held, resolve: release } = Promise.withResolvers<boolean>();
+  await page.route('**/api/cards', async (route) => {
+    await held;
+    await route.fulfill({
+      status: 200,
+      body: ndjson(GENERATED),
+      headers: { 'content-type': 'application/x-ndjson' },
+    });
+  });
+  await open(page);
+  await playStarters(page, 1);
+  for (const c of STARTER.slice(1)) {
+    await expect(card(page).getByRole('heading', { name: c.title })).toBeVisible();
+    await page.getByRole('button', { name: 'Skip this card' }).click();
+  }
+  await expect(card(page)).toHaveCount(0);
+
+  await swipeRight(page);
+  await expect(reviewCard(page).getByRole('heading', { name: FIRST.title })).toBeVisible();
+  release(true);
+  // The live card arrives hidden, and the review stays put.
+  await expect(card(page)).toHaveCount(1);
+  await expect(reviewCard(page).getByRole('heading', { name: FIRST.title })).toBeVisible();
+  await swipeLeft(page);
+  await expect(reviewCard(page)).toHaveCount(0);
+  await expect(card(page).getByRole('heading', { name: GENERATED[0]!.title })).toBeVisible();
+});
+
+test('on a card too long to fit, swiping up only leaves the review from the bottom', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 520 });
+  await open(page);
+  await answerStarter(page, FIRST, true);
+  await nextCard(page);
+  await answerStarter(page, SECOND, true);
+  await page.getByRole('button', { name: 'Previous card' }).click();
+  await expect(reviewCard(page).getByRole('heading', { name: FIRST.title })).toBeVisible();
+
+  await swipeUp(page);
+  await expect(reviewCard(page)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Back to current card' }).scrollIntoViewIfNeeded();
+  await page.mouse.wheel(0, 4000);
+  await swipeUp(page);
+  await expect(reviewCard(page)).toHaveCount(0);
+  await expect(card(page).getByRole('heading', { name: SECOND.title })).toBeVisible();
 });
 
 test('a sideways drag over an option does not answer the card', async ({ page }) => {

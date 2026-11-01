@@ -14,6 +14,7 @@ import { YStack } from 'tamagui';
 import { CardView } from '@/components/card/card-view';
 import { ReviewVerdict } from '@/components/card/review-verdict';
 import { VerdictPanel } from '@/components/card/verdict-panel';
+import { TextButton } from '@/components/ui/text-button';
 import type { Slot } from '@/game/engine';
 import { canSwipeAdvance, swipeDirection } from '@/game/rules';
 import type { Progress, ReviewEntry } from '@/game/types';
@@ -42,11 +43,17 @@ function ReviewedCard({
   entry,
   onBack,
   onOlder,
-}: Readonly<{ entry: ReviewEntry; onBack: () => void; onOlder: (() => void) | null }>) {
+  onNewer,
+}: Readonly<{
+  entry: ReviewEntry;
+  onBack: () => void;
+  onOlder: (() => void) | null;
+  onNewer: (() => void) | null;
+}>) {
   return (
     <>
       <CardView testID="review-card" card={entry.card} result={entry.result} onAnswer={inert} onSkip={inert} />
-      <ReviewVerdict card={entry.card} result={entry.result} onBack={onBack} onOlder={onOlder} />
+      <ReviewVerdict card={entry.card} result={entry.result} onBack={onBack} onOlder={onOlder} onNewer={onNewer} />
     </>
   );
 }
@@ -57,14 +64,14 @@ function SlotBody({
   domain,
   onAnswer,
   onNext,
-  onPrevious,
+  canLookBack,
 }: Readonly<{
   slot: Slot;
   progress: Progress;
   domain: string | null;
   onAnswer: (picked: number | number[]) => void;
   onNext: () => void;
-  onPrevious: (() => void) | null;
+  canLookBack: boolean;
 }>) {
   const actions = gameStore.getState();
   switch (slot.kind) {
@@ -78,7 +85,7 @@ function SlotBody({
               result={slot.result}
               onNext={onNext}
               onFlag={actions.flagWrong}
-              onPrevious={onPrevious}
+              canLookBack={canLookBack}
             />
           ) : null}
         </>
@@ -167,7 +174,7 @@ export function Feed(): React.ReactNode {
     activeOffsetY: [-20, 20],
     onDeactivate: (e) => {
       const direction = swipeDirection(e.translationX, e.translationY);
-      if (leaving.current || direction == null) return;
+      if (e.canceled || leaving.current || direction == null) return;
       const s = scroll.current;
       if (direction === 'up') {
         // Mid-scroll means momentum is still running or there is more card below.
@@ -231,6 +238,7 @@ export function Feed(): React.ReactNode {
                   entry={review.entry}
                   onBack={review.exit}
                   onOlder={review.hasOlder ? goOlder : null}
+                  onNewer={review.position > 1 ? review.newer : null}
                 />
               ) : null}
               {/* Stays mounted while reviewing, so a half-placed order card is still there on return. */}
@@ -241,8 +249,9 @@ export function Feed(): React.ReactNode {
                   domain={game.fetch.domain}
                   onAnswer={onAnswer}
                   onNext={goNext}
-                  onPrevious={review.hasOlder ? goOlder : null}
+                  canLookBack={review.hasOlder}
                 />
+                {review.hasOlder ? <TextButton label="Previous card" onPress={goOlder} /> : null}
               </YStack>
             </Animated.View>
           </ScrollView>
