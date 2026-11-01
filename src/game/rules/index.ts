@@ -10,6 +10,7 @@ export { rankFor } from './rank-for';
 export { rollDouble } from './roll-double';
 export { scoreAnswer } from './score-answer';
 export { shouldCancelInBackground } from './should-cancel-in-background';
+export { swipeDirection } from './swipe-direction';
 export type { Score, HapticPattern } from './types';
 export { updateStreak } from './update-streak';
 export { verdictWord } from './verdict-word';

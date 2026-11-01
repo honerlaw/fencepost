@@ -2,6 +2,9 @@ export const MAX_MISSED = 30;
 
 export const MAX_RECENT = 30;
 
+/** Answered cards kept for review. */
+export const MAX_HISTORY = 50;
+
 /** How many recent titles go to the server, which rejects a longer list. */
 export const RECENT_SENT = 20;
 

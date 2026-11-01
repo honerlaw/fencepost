@@ -10,14 +10,17 @@ import {
   beginFetch,
   dealIn,
   flagWrong,
+  MAX_HISTORY,
   MAX_MISSED,
   newProgress,
   nextFetch,
   recentForRequest,
+  reviewEntries,
   skip,
   startSession,
   type GameState,
 } from './engine';
+import { WRONG_WORDS } from './rules';
 import { seededRng } from './rng';
 import type { Card, FlawCard, ModelCard, PlayedCard, Progress } from './types';
 
@@ -527,5 +530,100 @@ describe('duplicate cards', () => {
       expect(s.current.kind).toBe('welcome');
       expect(s.progress.starterDone).toBe(true);
     });
+  });
+});
+
+const reviewTitles = (s: GameState) => reviewEntries(s).map((entry) => entry.card.title);
+const played = (s: GameState) => advance(right(s), deps());
+
+describe('review history', () => {
+  it('records an answered card with what the player saw', () => {
+    const c = modelCard({ title: 'Seen' });
+    const s = wrong(playing([c]));
+    expect(s.progress.history).toHaveLength(1);
+    expect(s.progress.history?.[0]).toMatchObject({
+      card: c,
+      result: { correct: false, picked: 3, score: { points: 0 }, flagged: false },
+    });
+    expect(WRONG_WORDS).toContain(s.progress.history?.[0]?.result.verdict);
+  });
+
+  it('keeps what a stored entry needs, not the toasts, haptic or undo data', () => {
+    const s = right(playing([modelCard()]));
+    expect(Object.keys(s.progress.history?.[0]?.result ?? {}).toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'correct',
+      'flagged',
+      'picked',
+      'score',
+      'verdict',
+    ]);
+  });
+
+  it('offers nothing before the first card is answered, or for the card just answered', () => {
+    const s = playing([modelCard(), modelCard()]);
+    expect(reviewEntries(s)).toEqual([]);
+    expect(reviewEntries(right(s))).toEqual([]);
+  });
+
+  it('lists earlier cards oldest first, leaving out the answered card on screen', () => {
+    const [a, b, c] = [modelCard({ title: 'A' }), modelCard({ title: 'B' }), modelCard({ title: 'C' })];
+    const afterTwo = played(played(playing([a, b, c])));
+    expect(reviewTitles(afterTwo)).toEqual(['A', 'B']);
+    expect(reviewTitles(right(afterTwo))).toEqual(['A', 'B']);
+  });
+
+  it('offers the last card on a status slot', () => {
+    const s = played(playing([modelCard({ title: 'Only' })]));
+    expect(s.current.kind).toBe('loading');
+    expect(reviewTitles(s)).toEqual(['Only']);
+  });
+
+  it('does not record a skipped card', () => {
+    const s = skip(playing([modelCard(), modelCard()]), deps());
+    expect(s.progress.history).toBeUndefined();
+  });
+
+  it('survives a restart, where the newest card is no longer on screen', () => {
+    const s = right(playing([modelCard({ title: 'Kept' })]));
+    expect(reviewTitles(startSession(s.progress, [], deps()))).toEqual(['Kept']);
+  });
+
+  it('never holds more than the cap, dropping the oldest', () => {
+    let s = playing(Array.from({ length: MAX_HISTORY + 3 }, (_, i) => modelCard({ title: `T${i}` })));
+    for (let i = 0; i < MAX_HISTORY + 3; i++) s = played(s);
+    expect(s.progress.history).toHaveLength(MAX_HISTORY);
+    expect(s.progress.history?.[0]?.card.title).toBe('T3');
+  });
+
+  it('keeps both answers to a rematch', () => {
+    const c = modelCard({ title: 'Twice' });
+    // A rematch never follows its own miss, so one card sits between them.
+    const missed = played(advance(wrong(playing([c, modelCard()])), deps()));
+    expect(current(missed).rematch).toBe(true);
+    const second = right(missed);
+    expect(second.progress.history?.map((entry) => entry.result.correct)).toEqual([false, true, true]);
+  });
+
+  it('marks a flagged card in history', () => {
+    const s = flagWrong(wrong(playing([modelCard()])));
+    expect(s.progress.history?.[0]?.result.flagged).toBe(true);
+  });
+
+  it('leaves history alone if its newest entry is not the flagged card', () => {
+    const s = wrong(playing([modelCard()]));
+    const other = { ...s.progress.history![0]!, card: modelCard() };
+    const flagged = flagWrong({ ...s, progress: { ...s.progress, history: [other] } });
+    expect(flagged.progress.history).toEqual([other]);
+  });
+
+  it('plays on from progress saved before history existed', () => {
+    const c = modelCard({ title: 'First' });
+    const s = flagWrong(wrong(playing([c])));
+    const saved = { ...s.progress };
+    delete saved.history;
+    expect(reviewEntries(startSession(saved, [], deps()))).toEqual([]);
+    const resumed = wrong(playing([modelCard()], saved));
+    expect(resumed.progress.history).toHaveLength(1);
+    expect(flagWrong({ ...s, current: wrong(playing([c])).current, progress: saved }).progress.history).toEqual([]);
   });
 });

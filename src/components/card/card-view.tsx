@@ -2,8 +2,7 @@ import { Text, XStack, YStack } from 'tamagui';
 
 import { domainName } from '@/cards/domains';
 import { Tap } from '@/components/ui/tap';
-import type { AnswerResult } from '@/game/engine';
-import type { PlayedCard } from '@/game/types';
+import type { PlayedCard, ReviewedResult } from '@/game/types';
 import { CodeBlock } from './code-block';
 import { TYPE_LABEL } from './labels';
 import { Options } from './options';
@@ -31,7 +30,7 @@ function Body({
   onAnswer,
 }: Readonly<{
   card: PlayedCard;
-  result: AnswerResult | null;
+  result: ReviewedResult | null;
   onAnswer: (picked: number | number[]) => void;
 }>) {
   const picked = result?.picked;
@@ -105,15 +104,22 @@ function Body({
 
 interface CardViewProps {
   card: PlayedCard;
-  result: AnswerResult | null;
+  result: ReviewedResult | null;
   onAnswer: (picked: number | number[]) => void;
   onSkip: () => void;
+  testID?: string;
 }
 
-export function CardView({ card, result, onAnswer, onSkip }: Readonly<CardViewProps>): React.ReactNode {
+export function CardView({
+  card,
+  result,
+  onAnswer,
+  onSkip,
+  testID = 'card',
+}: Readonly<CardViewProps>): React.ReactNode {
   const face = (
     <YStack
-      testID="card"
+      testID={testID}
       bg="$card"
       rounded="$5"
       borderWidth={card.boss ? 2 : 1}

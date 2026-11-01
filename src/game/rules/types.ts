@@ -1,3 +1,5 @@
+export type SwipeDirection = 'up' | 'left' | 'right';
+
 export interface Score {
   points: number;
   multiplier: number;

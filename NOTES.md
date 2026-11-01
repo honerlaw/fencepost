@@ -161,7 +161,7 @@ These were left undone on purpose. Most need your accounts, money or hardware, o
    - The cloud alternative needs no Xcode at all: `npx eas-cli@latest build --platform ios --profile simulator` (see "Deploying to TestFlight"). A debug `development` profile doesn't exist yet. It would need `expo-dev-client` and `"developmentClient": true`.
    - From now on, adding a native module that Expo Go doesn't bundle, or a config plugin whose effect only a native build exercises, means a dev build is required to verify it.
 6. **Android.** No emulator pass was done (no Android SDK on this machine).
-7. **Manual simulator passes.** Airplane mode mid-batch, reduce motion, large text / Dynamic Type, native swipe feel, and physical haptic feel.
+7. **Manual simulator passes.** Airplane mode mid-batch, reduce motion, large text / Dynamic Type, native swipe feel, and physical haptic feel. Swipe left and right to review earlier cards is web-tested only: check it on a card, from code that fits and code that overflows, and that a vertical scroll doesn't trigger it. On Android, start mid-screen, because a left-edge swipe is the system back gesture.
 8. **Native streaming against the deployed server.** The client reads `/api/cards` with `expo/fetch`. Incremental reads are verified on web, the server's streaming with `curl -N` (`evidence/curl-stream.txt`), and the native read path in Expo Go on the iOS simulator against the dev server and the fake OpenRouter (`evidence/ios-expo-go-native-stream.txt`: 5 cards arriving about 1 s apart). Not verified: Android, a release build (which resolves against the `origin` above instead of the dev server), and a real network between the phone and Fly.
 
 ## Small known follow-ups

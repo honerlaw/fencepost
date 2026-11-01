@@ -2,13 +2,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import type { StateStorage } from 'zustand/middleware';
 
-import { newProgress } from '@/game/engine';
+import { newProgress, reviewEntries } from '@/game/engine';
 import { BATCH_DEADLINE_MS, MIN_FETCH_GAP_MS } from '@/game/fetch-policy';
 import type { Card } from '@/game/types';
 import { debounceStorage } from './debounced-storage';
 import { createGameStore, STORAGE_KEY, type FetchBatch } from './game-store';
 
 const PersistedAnswers = z.object({ state: z.object({ progress: z.object({ answered: z.number() }) }) });
+const PersistedState = z.object({
+  state: z.object({ progress: z.object({ history: z.array(z.unknown()).optional() }).loose() }),
+  version: z.number(),
+});
 
 const DAY = 24 * 60 * 60 * 1000;
 const T0 = new Date(2026, 9, 29, 12, 0).getTime();
@@ -187,6 +191,34 @@ describe('game store persistence', () => {
     expect(currentCard(second.store).title).toBe(titles[2]);
     expect(second.store.getState().game?.starter).toHaveLength(3);
     expect(second.store.getState().progress).toMatchObject({ xp: saved.xp, answered: 1, starterDone: false });
+  });
+
+  it('keeps answered cards across a restart, and loads progress saved before history existed', async () => {
+    const backing = memoryStorage();
+    const clock = { now: T0 };
+    const first = makeStore(backing, clock);
+    await hydrated(first.store);
+    first.store.getState().begin();
+    const title = currentCard(first.store).title;
+    first.store.getState().answer(rightAnswer(currentCard(first.store)));
+    await first.storage.flush();
+
+    const second = makeStore(backing, clock);
+    await hydrated(second.store);
+    second.store.getState().begin();
+    expect(reviewEntries(second.store.getState().game!).map((entry) => entry.card.title)).toEqual([title]);
+
+    const saved = PersistedState.parse(JSON.parse(backing.data.get(STORAGE_KEY)!));
+    expect(saved.state.progress.history).toHaveLength(1);
+    delete saved.state.progress.history;
+    backing.data.set(STORAGE_KEY, JSON.stringify(saved));
+    const third = makeStore(backing, clock);
+    await hydrated(third.store);
+    third.store.getState().begin();
+    expect(third.store.getState().progress?.answered).toBe(1);
+    expect(reviewEntries(third.store.getState().game!)).toEqual([]);
+    third.store.getState().answer(rightAnswer(currentCard(third.store)));
+    expect(third.store.getState().progress?.history).toHaveLength(1);
   });
 
   it('coalesces writes until the debounce fires or a flush', async () => {
