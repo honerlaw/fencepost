@@ -1,1 +1,1 @@
-export const LIMITS = { title: 70, prompt: 280, why: 420, input: 280 } as const;
+export const LIMITS = { title: 70, prompt: 320, why: 420, input: 320 } as const;

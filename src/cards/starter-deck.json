@@ -3,15 +3,15 @@
     "domain": "reservations",
     "type": "flaw",
     "title": "Overlapping bookings",
-    "prompt": "can_book should reject any booking that overlaps a live reservation. Tap the line that lets double bookings through.",
+    "prompt": "can_book(table, s, e) should reject a new booking from time s to time e that overlaps any live reservation on that table. Tap the line that lets double bookings through.",
     "code": [
-      "def can_book(table, s, e):",
-      "  for r in table.reservations:",
+      "function can_book(table, s, e):",
+      "  for each r in table.reservations:",
       "    if r.status == \"cancelled\":",
       "      continue",
       "    if r.start <= s and e <= r.end:",
-      "      return False",
-      "  return True"
+      "      return false",
+      "  return true"
     ],
     "bad_line": "if r.start <= s and e <= r.end:",
     "input": null,
@@ -43,14 +43,14 @@
     "type": "break",
     "title": "Splitting the bill",
     "double": true,
-    "prompt": "split_bill should return shares that add up to the total. Which bill breaks it?",
-    "code": ["def split_bill(total_cents, n):", "  share = total_cents // n", "  return [share] * n"],
+    "prompt": "split_bill divides a bill of cents among n people, and the shares should add up to the total. Which bill breaks it?",
+    "code": ["function split_bill(cents, n):", "  share = round_down(cents / n)", "  return n copies of share"],
     "options": ["$90.00 split 3 ways", "$100.00 split 4 ways", "$100.00 split 3 ways", "$50.00 split 2 ways"],
     "correct": "$100.00 split 3 ways",
     "input": null,
     "bad_line": null,
     "steps": null,
-    "why": "10000 // 3 is 3333, so the shares add up to 9999 and a cent disappears. Hand the remainder to the first shares."
+    "why": "$100.00 is 10000 cents. Divided by 3 and rounded down, that is 3333, so the shares add up to 9999 and a cent disappears. Hand the remainder to the first shares."
   },
   {
     "domain": "ratelimit",
@@ -59,16 +59,14 @@
     "prompt": "allow() should permit at most 3 calls per user in any 60 seconds. What happens to the call at t=30?",
     "code": [
       "LIMIT = 3",
-      "def allow(user, now):",
-      "  hits = [t for t in log[user]",
-      "          if t > now - 60]",
-      "  if len(hits) > LIMIT:",
-      "    return False",
-      "  hits.append(now)",
-      "  log[user] = hits",
-      "  return True"
+      "function allow(user, now):",
+      "  n = calls_since(user, now - 60)",
+      "  if n > LIMIT:",
+      "    return false",
+      "  save_call(user, now)",
+      "  return true"
     ],
-    "input": "log[user] starts as []. The user calls at t = 0, 10, 20 and 30 seconds.",
+    "input": "calls_since counts the user's saved calls later than the given time, and save_call saves one. No calls are saved yet. The user calls at t = 0, 10, 20 and 30 seconds.",
     "options": [
       "Allowed, as the 4th call in a minute",
       "Rejected, because the limit of 3 is reached",
@@ -78,7 +76,7 @@
     "correct": "Allowed, as the 4th call in a minute",
     "bad_line": null,
     "steps": null,
-    "why": "At t=30 there are 3 earlier hits, and 3 > 3 is false, so a 4th call gets through. The check should be len(hits) >= LIMIT."
+    "why": "At t=30, calls_since returns 3, and 3 > 3 is false, so a 4th call gets through. The check should be n >= LIMIT."
   },
   {
     "domain": "checkout",
@@ -103,21 +101,20 @@
     "domain": "parking",
     "type": "flaw",
     "title": "Billing by the hour",
-    "prompt": "The garage bills every started hour in full after a 15-minute grace period. Tap the wrong line.",
+    "prompt": "The garage bills every started hour in full after a 15-minute grace period, and mins is the time parked in minutes. Tap the wrong line.",
     "code": [
-      "RATE = 400  # cents per hour",
-      "def fee(entered, exited):",
-      "  mins = minutes(exited - entered)",
+      "CENTS_PER_HOUR = 400",
+      "function fee(mins):",
       "  if mins <= 15:",
       "    return 0",
-      "  hours = mins // 60",
-      "  return hours * RATE"
+      "  hours = round_down(mins / 60)",
+      "  return hours * CENTS_PER_HOUR"
     ],
-    "bad_line": "hours = mins // 60",
+    "bad_line": "hours = round_down(mins / 60)",
     "input": null,
     "options": null,
     "correct": null,
     "steps": null,
-    "why": "Floor division bills 61 minutes as one hour and 50 minutes as nothing. A started hour counts, so round up: ceil(mins / 60)."
+    "why": "Rounding down bills 61 minutes as one hour and 50 minutes as nothing. A started hour counts, so use round_up(mins / 60)."
   }
 ]

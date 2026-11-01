@@ -226,6 +226,55 @@ describe('/api/cards streaming', () => {
     ]);
   });
 
+  const pythonCard = {
+    type: 'flaw',
+    title: 'Python',
+    prompt: 'Tap the wrong line.',
+    code: ['def f(x):', '  return x // 2'],
+    input: null,
+    options: null,
+    correct: null,
+    bad_line: 'return x // 2',
+    steps: null,
+    why: 'Because.',
+  };
+
+  it('counts a card with language-specific syntax as dropped and reports it', async () => {
+    const dropped: unknown[] = [];
+    const kept: string[] = [];
+    const source = createLiveCardSource({
+      models: ['m'],
+      languageModel: () => scriptedModel([pythonCard, modelCard('Kept')]),
+      maxOutputTokens: 100,
+      rng: () => 0.5,
+      newId: () => 'id',
+      onDrop: (raw) => dropped.push(raw),
+    });
+    const stats = await source.getBatch(
+      {
+        domain: 'cache',
+        plan: [
+          { type: 'flaw', boss: false },
+          { type: 'model', boss: false },
+        ],
+        prompt: 'p',
+        signal: new AbortController().signal,
+      },
+      (c) => kept.push(c.title),
+    );
+    expect(stats).toMatchObject({ sent: 1, dropped: 1 });
+    expect(kept).toEqual(['Kept']);
+    expect(dropped).toEqual([pythonCard]);
+  });
+
+  it('falls back when language-specific syntax drops every card', async () => {
+    const fallback = scriptedModel([modelCard('From fallback')]);
+    const { handlers, logs } = setup({ primary: scriptedModel([pythonCard]), fallback });
+    const events = await all(await handlers.cards(cardsRequest()));
+    expect(events.map((e) => e['event'])).toEqual(['start', 'card', 'done']);
+    await vi.waitFor(() => expect(logs[0]).toMatchObject({ model: 'fallback', sent: 1 }));
+  });
+
   it('retries once with the fallback model when the first fails before any card', async () => {
     const fallback = scriptedModel([modelCard('From fallback')]);
     const { handlers, logs } = setup({ primary: failingModel(), fallback });

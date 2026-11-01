@@ -47,6 +47,23 @@ On (`experiments.reactCompiler` in `app.json`). It works with Tamagui 2.7.7 and 
 
 Costs are calculated from token counts and OpenRouter's list prices at the time. Accuracy matched, so Sonnet won on speed and cost. The cards were worked through by hand, not executed, and 25 clean cards per model can't rule out a low error rate.
 
+### Pseudocode prompt, 2026-10-31
+
+Card code moved from Python-like to language-neutral pseudocode, and each card now has to explain the data its code uses. Those rules make the model think longer, because a batch is mostly reasoning before the first card. `BATCH_TIMEOUT_MS` rose from 90 s to 120 s and `BATCH_DEADLINE_MS` from 100 s to 130 s to absorb that.
+
+| Sonnet 5.5, same day | Old prompt, 90 s limit | New prompt, 120 s limit |
+|---|---|---|
+| Batches | 5 | 10 |
+| Cards kept / dropped | 25 / 0 | 50 / 0 |
+| Failed batches | 0 | 0 |
+| Average first card | 33.8 s | 52.0 s |
+| Average batch | 39.2 s | 58.2 s |
+| Slowest batch | 56.4 s | 80.7 s |
+
+Runs of one prompt differ by more than 10 s, so these figures are approximate. The new prompt timed out 2 times in 25 batches at the old 90 s limit. No batch passed 90 s in the run above, so the 120 s limit is not yet proven, and 10 clean batches can't rule out timeouts. The Opus fallback ran 2 batches at 53 s and 58 s, too few to conclude anything.
+
+An independent read of 55 cards from the final prompt found no wrong answers, and small problems on 11 cards: unstated rules and a few ambiguous options. Language-specific syntax is enforced by `findLanguageSyntax` in `src/cards/normalize/language-syntax.ts`, which drops flaw, break and trace cards that use it. It's a denylist, so the prompt still does most of the work. The 34-character line limit in the prompt isn't enforced: 16 of 277 lines passed it, longest 46, and code blocks scroll sideways.
+
 ## Deploying to TestFlight
 
 `.eas/workflows/deploy-ios.yml` runs on every push to `main`. It hashes the native side of the app. If no production build has that hash, it builds and uploads to TestFlight. If one does, it publishes an over-the-air update to the `production` branch, which only builds with that same hash download.
@@ -166,5 +183,5 @@ These were left undone on purpose. Most need your accounts, money or hardware, o
 
 ## Small known follow-ups
 
-- Cards take about 40 s to start arriving, but the app only fetches more once 2 or fewer are queued (`LOW_WATER` in `src/game/fetch-policy.ts`), so players will likely reach the loading card between batches. Raising `LOW_WATER` to 3 is the cheapest first step; if that isn't enough, reduce reasoning (the code doesn't set it today) and rerun the eval.
+- Cards take about 50 s to start arriving, but the app only fetches more once 2 or fewer are queued (`LOW_WATER` in `src/game/fetch-policy.ts`), so players will likely reach the loading card between batches. Raising `LOW_WATER` to 3 is the cheapest first step; if that isn't enough, reduce reasoning (the code doesn't set it today) and rerun the eval.
 - The Docker image is about 1.26 GB because Expo/React Native are runtime `dependencies`. A slimmer runtime stage (only `express`, `expo-server` and the export) would cut that.

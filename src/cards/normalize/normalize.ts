@@ -3,6 +3,7 @@ import type { Card, CardBase, Rng } from '@/game/types';
 import { RawCardSchema, type RawCard } from '../schema';
 import { collapse } from './collapse';
 import { LIMITS } from './constants';
+import { findLanguageSyntax } from './language-syntax';
 import type { NormalizeOptions } from './types';
 
 const MAX_CODE_LINES = 16;
@@ -17,7 +18,10 @@ function cleanText(text: unknown, max: number): string | null {
   return cleaned ? truncate(cleaned, max) : null;
 }
 
-/** Tabs → 2 spaces, trailing spaces stripped, leading indentation kept, blank lines dropped. */
+/**
+ * Tabs → 2 spaces, trailing spaces stripped, leading indentation kept, blank lines dropped.
+ * Code that leans on a particular language's syntax is rejected.
+ */
 function cleanCode(code: string[] | null): string[] | null {
   if (!code) return null;
   const lines = code
@@ -25,6 +29,7 @@ function cleanCode(code: string[] | null): string[] | null {
     .map((line) => line.replaceAll('\t', '  ').trimEnd())
     .filter((line) => line.trim() !== '');
   if (lines.length < 2 || lines.length > MAX_CODE_LINES) return null;
+  if (lines.some((line) => findLanguageSyntax(line) !== null)) return null;
   return lines;
 }
 

@@ -2,11 +2,11 @@
   {
     "type": "flaw",
     "title": "Late checkout window",
-    "prompt": "A hold expires 15 minutes after it was placed. Tap the line that lets expired holds keep stock.",
+    "prompt": "A hold expires 15 minutes after it was placed, and all times are in seconds. Tap the line that lets expired holds keep stock.",
     "code": [
-      "def is_live(hold, now):",
+      "function is_live(hold, now):",
       "  if hold.released:",
-      "    return False",
+      "    return false",
       "  age = now - hold.placed_at",
       "  return age <= 15 * 60 * 60"
     ],
@@ -38,7 +38,13 @@
     "type": "break",
     "title": "Seats left",
     "prompt": "seats_left should never go below zero. Which booking sequence breaks it?",
-    "code": ["def book(show, n):", "  if show.left >= n:", "    show.left -= n", "    return True", "  return False"],
+    "code": [
+      "function book(show, n):",
+      "  if show.left >= n:",
+      "    show.left = show.left - n",
+      "    return true",
+      "  return false"
+    ],
     "options": [
       "Two parallel bookings for the last seat",
       "One booking for every remaining seat",
@@ -55,13 +61,19 @@
     "type": "trace",
     "title": "Retry with backoff",
     "prompt": "How long does the job wait before its third attempt?",
-    "code": ["def delay(attempt):", "  base = 2", "  return base ** attempt"],
+    "code": [
+      "function delay(attempt):",
+      "  wait = 1",
+      "  for each step in 1 to attempt:",
+      "    wait = wait * 2",
+      "  return wait"
+    ],
     "input": "Attempts are numbered from 0. The first attempt runs at once.",
     "options": ["4 seconds", "2 seconds", "8 seconds", "1 second"],
     "correct": "4 seconds",
     "bad_line": null,
     "steps": null,
-    "why": "The third attempt is attempt 2, so it waits 2 ** 2 = 4 seconds."
+    "why": "The third attempt is attempt 2, so the wait doubles twice: 1, 2, then 4 seconds."
   },
   {
     "type": "order",

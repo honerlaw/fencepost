@@ -9,7 +9,7 @@ const plan = [
 ];
 
 describe('prompt builder', () => {
-  it('fills the handoff prompt verbatim', () => {
+  it('fills the prompt template', () => {
     const prompt = buildPrompt({
       domain: 'payments',
       plan,
@@ -24,6 +24,10 @@ describe('prompt builder', () => {
     expect(prompt).toContain('Scenario flavor for this batch: a flash sale.');
     expect(prompt).toContain('Do not repeat these recent cards: "Splitting the bill", "Two hosts, one table".');
     expect(prompt).not.toMatch(/\{[A-Z_]+\}/);
+    expect(prompt).not.toContain('Python');
+    expect(prompt).toContain('for each x in xs:');
+    expect(prompt).toContain('the player sees only the prompt, input and code');
+    expect(prompt).toContain('one or two sentences of at most 40 words');
     // Everything outside the placeholders is the template's own text.
     for (const piece of PROMPT_TEMPLATE.split(/\{[A-Z_]+\}/)) expect(prompt).toContain(piece);
   });

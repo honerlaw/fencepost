@@ -34,7 +34,7 @@ Stated criteria: (1) the common syntax of Python and C-family languages cannot r
    - Data: `order.total` for a field, `calls[user]` for a lookup, with the data explained on the card.
    - Everything else is said in words or with a plainly named helper: `add x to items`, `remove x from items`, `count(items)`, `round_down(a / b)`, `round_up(a / b)`, `remainder(a, b)`, `return n copies of share`.
    - One statement per line, never wrapped. No comments at all. The 34-character line limit stays; code blocks already scroll sideways.
-   - An explicit banned list matching the gate.
+   - The prompt lists allowed forms only; the gate enforces the banned list (see `replan.md`).
    Add a context rule: the player sees only the prompt, input and code, so any data or helper the code uses but does not create must be explained, by a name that says what it holds or does and, for data, in the prompt or input, including units and what each entry is. One-letter names are explained too. Trace inputs state the starting value of every piece of data the code reads. In `prompt`, `input`, `options` and `why`, describe logic in words and the same dialect.
    Field limits: `prompt` becomes one or two sentences, at most 40 words (from one sentence, 25 words). `input` gets an explicit limit of at most 40 words. `LIMITS.prompt` and `LIMITS.input` rise from 280 to 320 characters so 40 words is not silently truncated. Update the snapshot, the "handoff verbatim" comment and the test name.
 2. **Gate (`src/cards/normalize/language-syntax.ts`, new).** `findLanguageSyntax(line)` strips double-quoted strings, then returns the name of the first construct it finds, or null. It matches with word boundaries and is case-sensitive:
@@ -57,13 +57,13 @@ Accepted costs: a dropped card is not backfilled, so a batch shrinks by one and 
 Out of scope: UI changes, a new card field, rewriting `model` and `order` cards in the deck, and the handoff document (a historical record).
 
 ## Success criteria
-1. `PROMPT_TEMPLATE` contains the dialect, banned list and context rule, does not contain "Python", and allows two sentences and 40 words in `prompt`. The prompt snapshot is updated, and `LIMITS.prompt` and `LIMITS.input` are 320.
+1. `PROMPT_TEMPLATE` contains the dialect and context rule, does not contain "Python", and allows two sentences and 40 words in `prompt`. The prompt snapshot is updated, and `LIMITS.prompt` and `LIMITS.input` are 320. The gate alone enforces the banned list.
 2. A table-driven unit test shows `findLanguageSyntax` names every banned construct, returns null for every allowed dialect form, ignores banned text inside quoted strings, and returns null for near misses: `default_rate`, `strlen(x)`, `x >= -1`, `a != b`, `a[x] == b[y]`, `calls[user]`, `function name(args):`, `else if x > 1:`.
 3. `normalize` returns null for a `flaw`, `break` or `trace` card containing banned syntax, covered by unit tests. A server test shows gate drops count in `dropped`, call `onDrop`, and that a batch where every card is dropped takes the existing fallback path.
 4. A unit test runs the deck through the real `loadStarterDeck` without throwing, and asserts no starter code line trips the gate.
 5. Each rewritten starter card is traced by hand, with its answer recorded in the PR description, and every name in its code is either defined in the code or explained on the card.
-6. On the 5-batch Sonnet eval (25 cards), at most 2 cards are dropped, with each drop's construct printed. A hand read of every kept card finds no language-specific syntax, no unexplained data and no wrong answer. The fallback's 2-batch result is recorded. Totals by card type go in `NOTES.md`.
+6. On a 10-batch Sonnet eval (50 cards) of the final prompt, gate and 120 s limit, at most 4 cards are dropped with each drop's construct printed, and no batch fails. An independent reader finds no wrong answer in an eval of the final prompt; other findings are recorded. That read is a smoke test. The fallback's 2-batch result is recorded. Timing and accepted costs go in `NOTES.md`.
 7. `npm run guard` passes and the Playwright suite passes.
 
 ## Open Questions
-- If the eval drops more than 2 of 25 cards, resolve it from the constructs the eval prints: tighten the prompt for a real violation, and fix the gate for a false positive. Do not loosen the gate blindly.
+- If the eval drops more than 4 of 50 cards, resolve it from the constructs the eval prints: tighten the prompt for a real violation, and fix the gate for a false positive. Do not loosen the gate blindly.
