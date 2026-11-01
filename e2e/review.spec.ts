@@ -154,6 +154,23 @@ test('answered cards are still there after a reload, on an answered card and on 
   await expect(reviewCard(page).getByRole('heading', { name: STARTER.at(-1)!.title })).toBeVisible();
 });
 
+test('a status card can look back too, and is still there on return', async ({ page }) => {
+  await open(page);
+  await playStarters(page, 1);
+  for (const c of STARTER.slice(1)) {
+    await expect(card(page).getByRole('heading', { name: c.title })).toBeVisible();
+    await page.getByRole('button', { name: 'Skip this card' }).click();
+  }
+  await expect(card(page)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+
+  await swipeRight(page);
+  await expect(reviewCard(page).getByRole('heading', { name: FIRST.title })).toBeVisible();
+  await swipeLeft(page);
+  await expect(reviewCard(page)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+});
+
 test('a sideways drag over an option does not answer the card', async ({ page }) => {
   await open(page);
   await playStarters(page, 1);
